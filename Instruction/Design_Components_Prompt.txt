@@ -1,0 +1,613 @@
+Employee Onboarding Management System UI Propmts:
+🎨 Design System Guidelines
+Use these specifications across all screens:
+Color Palette: Professional blue (#2563eb primary, #1e40af dark, #dbeafe light), white (#ffffff), gray (#f3f4f6 background, #6b7280 text)
+Typography: Clean sans-serif fonts (Inter, Roboto, or similar)
+Style: Modern, clean, professional corporate design
+Components: Rounded corners (8px), subtle shadows, clear CTAs
+Responsive: Desktop-first with mobile considerations
+
+CANDIDATE PORTAL SCREENS
+1. Candidate Login Page
+Prompt:
+Design a modern, professional login page for an employee onboarding portal. The page should have:
+- Company logo "JRM INFOSYSTEMS PRIVATE LIMITED" at the top center
+- Clean white card/container centered on a subtle gradient background (light blue to white)
+- Heading "Candidate Login" in bold, dark blue text
+- Two input fields with icons:
+  * Email address field (with envelope icon)
+  * Password field (with lock icon and show/hide toggle)
+- "Forgot Password?" link aligned to the right below password field
+- Large, prominent "Login" button in blue (#2563eb)
+- Footer text: "First time here? Check your email for login credentials"
+- Minimalist, corporate aesthetic with plenty of white space
+- Subtle shadow around the login card
+
+2. Candidate Registration/First Login Page
+Prompt:
+Design a welcome registration screen for new candidates. Include:
+- Header with company logo and "Welcome to JRM Infosystems" greeting
+- Welcoming message: "Complete your profile to begin the onboarding process"
+- Registration form in a clean white card with sections:
+  * Email field (pre-filled, disabled)
+  * Create Password field with strength indicator
+  * Confirm Password field
+  * Password requirements checklist (minimum 8 characters, alphanumeric, etc.)
+- Terms and conditions checkbox
+- "Create Account" button in blue
+- Progress indicator showing "Step 1 of 3: Account Setup"
+- Professional, trustworthy design with light background
+- Icons for each input field
+
+3. Candidate Dashboard/Home
+Prompt:
+Design a candidate dashboard homepage for onboarding portal. Layout should include:
+- Top navigation bar with:
+  * Company logo on left
+  * User name and profile photo on right with dropdown menu
+  * Logout option in dropdown
+- Welcome message: "Welcome, [Candidate Name]"
+- Large status card at top showing:
+  * Current application status (with color-coded badge: yellow for "Under Review", green for "Approved", red for "Rejected")
+  * Progress bar showing completion percentage
+  * Next action required (e.g., "Upload Documents" or "Application Under Review")
+- Three-column layout below:
+  * Left: Timeline/Progress tracker with 4 stages (Submit Application → Review → Upload Documents → Complete) with checkmarks for completed stages
+  * Center: Quick actions cards (Fill Application Form, Upload Documents - locked until approved, View Application)
+  * Right: Notifications panel with recent updates
+- Modern card-based layout with shadows and spacing
+- Blue accent colors for interactive elements
+- Clean, organized, professional corporate design
+
+4. Application Form - Page 1 (Basic & Address Info)
+Prompt:
+Design the first page of a multi-page application form. Include:
+- Progress indicator at top: "Page 1 of 3" with visual dots/steps
+- Form title: "Application Form - Basic Information"
+- Clean form layout with labeled sections:
+  * Section 1 - Basic Information:
+    - Post Applied For (dropdown/text field)
+    - Full Name (text field)
+    - Father's/Husband's Name (text field)
+    - Photo upload area (dotted border box with "Upload Passport Size Photo" and preview)
+  * Section 2 - Address Details:
+    - Permanent Address (textarea)
+    - Checkbox: "Communication address same as permanent"
+    - Address for Communication (textarea, auto-fills if checkbox selected)
+- All fields have clear labels and placeholder text
+- Required field indicators (red asterisk)
+- Buttons at bottom: "Save as Draft" (outline) and "Next" (filled blue)
+- Professional form design with proper spacing
+- Input fields with subtle borders and focus states
+- Light gray background with white form container
+
+5. Application Form - Page 2 (Personal & Banking Details)
+Prompt:
+Design the second page of the application form. Include:
+- Progress indicator: "Page 2 of 3"
+- Form title: "Application Form - Personal & Banking Details"
+- Two-column layout for better space utilization:
+  * Left column - Personal Details:
+    - Date of Birth (date picker with calendar icon)
+    - Sex (radio buttons or dropdown)
+    - Nationality (text field, default "Indian")
+    - Marital Status (dropdown)
+    - Religion (text field)
+    - Mobile No. (with country code +91 prefix)
+    - Email ID (text field with validation)
+  * Right column - Banking Information:
+    - Bank Name (text field)
+    - SB A/C No. (text field)
+    - IFSC Code (text field with format hint)
+    - Branch (text field)
+  * Below both columns - Identity Documents:
+    - PAN No. (with format example: ABCDE1234F)
+    - Aadhar No. (with format example and masking option)
+- Inline validation messages (green checkmark for valid, red for invalid)
+- Navigation buttons: "Previous" (outline), "Save as Draft" (outline), "Next" (filled blue)
+- Clean, organized form design with proper field grouping
+
+6. Application Form - Page 3 (Education & Declaration)
+Prompt:
+Design the final page of the application form. Include:
+- Progress indicator: "Page 3 of 3"
+- Form title: "Application Form - Education & Declaration"
+- Educational Qualifications section:
+  * Clean table layout with three columns:
+    - Column 1: Qualification Level (10th Std, 12th Std, Bachelor's Degree, Master's Degree)
+    - Column 2: Year of Passing (4-digit input)
+    - Column 3: % of Marks (decimal input with % symbol)
+  * Professional table design with alternating row colors
+  * Master's Degree row marked as optional
+- Declaration section:
+  * Full declaration text in a light gray box
+  * Checkbox: "I agree to the above declaration"
+  * Place field (current location)
+  * Date field (auto-filled with current date)
+- Form preview section: "Review your application before submitting"
+- Navigation buttons: "Previous" (outline), "Save as Draft" (outline), "Preview" (outline), "Submit Application" (prominent green button)
+- Success confirmation modal design for after submission
+- Professional, legal document feel for declaration section
+
+7. Application Preview/Summary
+Prompt:
+Design an application preview/summary page that matches the original PDF layout. Include:
+- Page title: "Application Preview"
+- PDF-style layout in a white container with border:
+  * Company header: "JRM INFOSYSTEMS PRIVATE LIMITED - APPLICATION FORM"
+  * Candidate photo in top right corner
+  * All information displayed in organized sections exactly as in PDF:
+    - Post Applied For and Name prominently at top
+    - Father's/Husband's Name
+    - Address section (Permanent and Communication)
+    - Personal details in two columns
+    - Banking information
+    - Identity documents (PAN, Aadhar)
+    - Educational qualifications in table format
+    - Declaration text with date and place
+- Print button (printer icon) in top right
+- Download PDF button
+- Edit button (if not yet submitted)
+- Submit button (if previewing before submission)
+- Back to Dashboard button
+- Clean, document-style layout matching official form appearance
+- Print-ready styling
+
+8. Document Upload Page
+Prompt:
+Design a document upload interface for candidates. Include:
+- Page title: "Upload Required Documents"
+- Status banner at top: "Your application has been approved! Please upload the following documents to proceed."
+- Document checklist layout with cards for each document type:
+  * Each card shows:
+    - Document name and icon (e.g., "PAN Card" with ID card icon)
+    - Upload status indicator (Not Uploaded / Uploaded / Verified)
+    - Upload button or file name if already uploaded
+    - Replace button if document is uploaded
+    - Preview thumbnail if image/PDF uploaded
+- Document cards include:
+  1. PAN Card
+  2. Aadhar Card
+  3. Passport (marked as optional)
+  4. 10th Standard Certificate
+  5. 12th Standard Certificate
+  6. Bachelor's Degree Certificate
+  7. Master's Degree Certificate (optional)
+  8. Police Clearance Certificate
+- Drag-and-drop upload zone for each card
+- File format and size requirements displayed: "PDF, JPG, PNG - Max 5MB"
+- Progress indicator for upload
+- "Submit All Documents" button at bottom (enabled only when required docs are uploaded)
+- Clean, organized grid layout (2 or 3 columns)
+- Visual feedback for upload states (gray for pending, blue for uploaded, green for verified)
+
+9. Application Status Tracking Page
+Prompt:
+Design an application status tracking page. Include:
+- Page title: "Track Your Application"
+- Large status banner showing current status with appropriate color:
+  * Yellow/Orange for "Under Review"
+  * Blue for "Documents Required"
+  * Green for "Approved/Complete"
+  * Red for "Rejected"
+- Visual timeline/stepper component showing journey:
+  * Step 1: Application Submitted ✓ (with date)
+  * Step 2: Under Review (current/in-progress indicator)
+  * Step 3: Upload Documents (upcoming)
+  * Step 4: Onboarding Complete (upcoming)
+- Activity log/timeline below showing:
+  * Each action taken with timestamp
+  * "Application submitted on DD/MM/YYYY"
+  * "Application under review by admin on DD/MM/YYYY"
+  * "Documents requested on DD/MM/YYYY"
+- Admin messages/feedback section if any
+- Estimated completion date
+- Action buttons based on current status
+- Clean, professional timeline design with icons
+- Card-based layout with subtle shadows
+
+
+ADMIN PORTAL SCREENS
+10. Admin Login Page
+Prompt:
+Design an admin login page with professional, secure appearance. Include:
+- Company logo at top
+- Heading: "Admin Portal" with subtitle "Employee Onboarding Management"
+- Shield or lock icon indicating secure access
+- Login form in centered white card:
+  * Admin Email field (with user icon)
+  * Password field (with lock icon and show/hide)
+  * "Remember me" checkbox
+  * "Forgot Password?" link
+- "Login to Dashboard" button in dark blue
+- Security badge or text: "Authorized Personnel Only"
+- More formal, corporate design compared to candidate login
+- Dark blue accent colors (#1e40af)
+- Background with subtle pattern or gradient
+- Higher security visual indicators
+
+11. Admin Dashboard/Home
+Prompt:
+Design a comprehensive admin dashboard for managing applications. Include:
+- Top navigation bar:
+  * Company logo and "Admin Portal" text on left
+  * Search bar in center
+  * Notification bell icon (with badge if unread)
+  * Admin profile with dropdown on right
+- Sidebar navigation:
+  * Dashboard (home icon)
+  * Applications (document icon)
+  * Document Review (folder icon)
+  * Reports (chart icon)
+  * Settings (gear icon)
+- Main dashboard content:
+  * Top row: 4 metric cards showing:
+    - Total Applications (with number and icon)
+    - Pending Review (with count in orange badge)
+    - Approved (with count in green badge)
+    - Rejected (with count in red badge)
+  * Quick actions section with buttons:
+    - View All Applications
+    - Generate Report
+    - Export Data
+  * Recent applications table:
+    - Columns: Candidate Name, Post Applied, Submission Date, Status, Actions
+    - Status badges with colors
+    - Quick action icons (View, Edit, Approve, Reject)
+  * Charts/graphs showing:
+    - Applications over time (line chart)
+    - Status distribution (donut chart)
+- Modern admin panel design with data visualization
+- Professional blue color scheme
+- Clean, information-dense layout
+- Sidebar with good spacing and icons
+
+12. Applications List/Management Page
+Prompt:
+Design an applications management page for admins. Include:
+- Page title: "All Applications" with application count
+- Filter and search bar at top:
+  * Search by name, email, or post
+  * Filter dropdown: Status (All, Pending, Approved, Rejected, Documents Pending)
+  * Date range picker
+  * Sort dropdown (Newest First, Oldest First, Name A-Z)
+  * "Export to Excel" button on right
+- Data table with columns:
+  * Checkbox (for bulk actions)
+  * S.No.
+  * Candidate Name (with small profile photo)
+  * Post Applied For
+  * Submission Date
+  * Status (colored badge)
+  * Actions (View icon, Edit icon, Delete icon)
+- Status indicators:
+  * Yellow/Orange badge: "Under Review"
+  * Green badge: "Approved"
+  * Red badge: "Rejected"
+  * Blue badge: "Documents Pending"
+  * Purple badge: "Complete"
+- Pagination at bottom (showing "1-10 of 45")
+- Bulk action dropdown at top when items selected
+- Table with alternating row colors for readability
+- Hover effects on rows
+- Professional data table design
+- Clear visual hierarchy
+
+13. Application Detail View (Admin)
+Prompt:
+Design a detailed application view for admin review. Include:
+- Header section:
+  * Candidate name and photo on left
+  * Status badge (large, prominent)
+  * Action buttons on right: Approve (green), Reject (red), Request Info (blue)
+  * Print and Download buttons
+- Tab navigation:
+  * Application Details (active)
+  * Documents
+  * Timeline
+  * Comments
+- Application details displayed in PDF-matching format:
+  * All sections from the original form clearly organized
+  * Each field with label and value
+  * Clean, scannable layout
+  * Sections: Basic Info, Address, Personal Details, Banking, Identity, Education
+  * Educational qualifications in table format
+- Right sidebar with:
+  * Quick info card (Application ID, Date Submitted, Post Applied For)
+  * Internal notes textarea
+  * Verification checklist with checkboxes for each section
+- Comments section at bottom for internal team communication
+- Modal designs for:
+  * Approve confirmation
+  * Reject with reason (dropdown + textarea)
+  * Request more information (textarea)
+- Professional review interface
+- Clear visual separation between sections
+- Data presented in easy-to-verify format
+
+
+14. Document Review Page (Admin)
+Prompt:
+Design a document review interface for admins. Include:
+- Page title: "Review Documents - [Candidate Name]"
+- Grid layout showing all uploaded documents:
+  * Each document card displays:
+    - Document type name with icon
+    - Thumbnail preview
+    - File name and size
+    - Upload date
+    - Verification status: Not Verified / Verified / Rejected
+    - Action buttons: View Full, Download, Verify, Reject
+- Document viewer modal:
+  * Large preview area for viewing document
+  * Zoom in/out controls
+  * Rotate controls
+  * Previous/Next navigation
+  * Verification tools: Verify (green button), Reject with reason (red button)
+- Documents include:
+  1. PAN Card
+  2. Aadhar Card
+  3. Passport
+  4. 10th Certificate
+  5. 12th Certificate
+  6. Bachelor's Degree
+  7. Master's Degree
+  8. Police Clearance Certificate
+- Status indicators:
+  * Gray: Awaiting Review
+  * Green: Verified with checkmark
+  * Red: Rejected with reason icon
+- Bulk actions: "Verify All" and "Download All as ZIP"
+- Overall verification status at top
+- Comments section for document-specific notes
+- Professional document management interface
+- Clear, large preview area
+- Easy verification workflow
+
+15. Rejection Modal/Dialog
+Prompt:
+Design a rejection confirmation modal for admins. Include:
+- Modal title: "Reject Application" with warning icon (red/orange)
+- Warning message: "Are you sure you want to reject this application? This action will notify the candidate."
+- Rejection reason section:
+  * Dropdown menu with common reasons:
+    - Incomplete Information
+    - Does Not Meet Requirements
+    - Duplicate Application
+    - Invalid Documents
+    - Other (specify below)
+  * Large textarea: "Additional Comments (will be sent to candidate)"
+- Candidate info reminder: Name, Post Applied For
+- Action buttons:
+  * "Cancel" (gray, outline)
+  * "Confirm Rejection" (red, filled)
+- Professional, cautious design
+- Clear visual warning elements
+- Required field indicators
+- Responsive modal design with overlay
+
+16. Approval Confirmation Modal
+Prompt:
+Design an approval confirmation modal for admins. Include:
+- Modal title: "Approve Application" with success icon (green checkmark)
+- Confirmation message: "You are about to approve this application. The candidate will be notified and can proceed to upload documents."
+- Candidate summary:
+  * Name with photo
+  * Post Applied For
+  * Application ID
+- Optional message to candidate section:
+  * Textarea: "Add a message for the candidate (optional)"
+  * Character counter
+- Next steps displayed:
+  * "✓ Candidate will receive approval email"
+  * "✓ Candidate can upload required documents"
+  * "✓ Application moves to 'Documents Pending' status"
+- Action buttons:
+  * "Cancel" (gray, outline)
+  * "Confirm Approval" (green, filled, prominent)
+- Positive, professional design
+- Green accent colors for success
+- Clear information hierarchy
+
+17. Admin Reports Page
+Prompt:
+Design a reports and analytics page for admins. Include:
+- Page title: "Reports & Analytics"
+- Date range selector at top (This Week, This Month, This Quarter, Custom Range)
+- Dashboard with multiple visualization cards:
+  * Card 1: Applications Overview (bar chart showing submitted vs approved vs rejected)
+  * Card 2: Processing Time (average days from submission to completion)
+  * Card 3: Status Breakdown (donut/pie chart)
+  * Card 4: Applications by Department/Post (horizontal bar chart)
+- Key metrics row:
+  * Total Applications Processed
+  * Average Processing Time
+  * Approval Rate (%)
+  * Pending Applications
+- Data table below: "Detailed Application Log"
+  * Columns: Date, Candidate, Post, Status, Processing Time, Admin
+  * Export button: "Export to Excel/PDF"
+- Filter section:
+  * Date range
+  * Status filter
+  * Department filter
+- Print report button
+- Download summary button
+- Professional analytics dashboard design
+- Charts with consistent color scheme
+- Data visualization best practices
+- Clean, business intelligence feel
+
+18. Admin Settings Page
+Prompt:
+Design an admin settings/configuration page. Include:
+- Page title: "Settings"
+- Tab navigation:
+  * General Settings
+  * User Management
+  * Email Templates
+  * System Configuration
+- General Settings tab content:
+  * Company Information section (editable fields)
+  * Application form configuration (enable/disable fields)
+  * Document requirements checklist (checkboxes for required docs)
+  * Auto-notification toggles
+- User Management section:
+  * List of admin users with roles
+  * Add New Admin button
+  * User cards showing: Name, Email, Role, Last Active
+  * Actions: Edit, Deactivate, Delete
+- Email Templates section:
+  * List of email templates:
+    - Welcome Email
+    - Approval Email
+    - Rejection Email
+    - Document Request Email
+  * Edit button for each template
+  * Preview button
+- Professional settings interface
+- Form-based layout with sections
+- Toggle switches for enable/disable options
+- Clear visual hierarchy
+- Consistent spacing and grouping
+
+
+SHARED/COMMON SCREENS
+19. Email Notification Templates (Visual Mock)
+Prompt:
+Design email template mockups for the onboarding system (6 templates). Show as screenshots/previews:
+
+Template 1 - Welcome Email:
+- Subject line: "Welcome to JRM Infosystems - Complete Your Onboarding"
+- Professional email header with company logo
+- Welcoming message
+- Login credentials section (boxed/highlighted)
+- Portal link as prominent button
+- Instructions and next steps
+- Support contact info in footer
+
+Template 2 - Application Submitted:
+- Subject: "Application Received - [Candidate Name]"
+- Confirmation message with application ID
+- Timeline of next steps
+- What to expect section
+
+Template 3 - Application Approved:
+- Subject: "Application Approved - Upload Your Documents"
+- Congratulations message
+- Document checklist
+- Portal link button
+- Deadline if applicable
+
+Template 4 - Application Rejected:
+- Subject: "Application Status Update"
+- Professional, respectful tone
+- Reason for rejection
+- Support contact for queries
+- Encouragement for future opportunities
+
+Template 5 - Documents Received:
+- Subject: "Documents Received - Under Review"
+- Confirmation of document upload
+- Expected review timeline
+
+Template 6 - Onboarding Complete:
+- Subject: "Welcome Aboard! Onboarding Complete"
+- Celebration message
+- Joining details
+- Next steps for first day
+- Welcome package information
+
+Design specifications:
+- Responsive email design
+- Company branding colors
+- Clear CTAs (buttons in blue)
+- Professional, corporate tone
+- Mobile-friendly layout
+- Proper spacing and typography
+
+20. Mobile Responsive Views
+Prompt:
+Design mobile responsive versions of key screens:
+
+1. Mobile - Candidate Dashboard:
+- Stacked layout
+- Hamburger menu for navigation
+- Status card at top (full width)
+- Action cards stacked vertically
+- Bottom navigation bar with icons
+
+2. Mobile - Application Form:
+- Single column layout
+- Larger touch targets for inputs
+- Progress indicator adapted for mobile
+- Sticky "Next" button at bottom
+- Collapsible sections with accordions
+
+3. Mobile - Document Upload:
+- Full-screen camera integration option
+- Large upload buttons
+- Swipeable document cards
+- Native file picker integration
+
+4. Mobile - Admin Dashboard:
+- Simplified metrics cards (2 per row)
+- Swipeable table for applications
+- Floating action button for quick actions
+- Drawer navigation from left
+
+Design specifications:
+- Touch-friendly UI (min 44px tap targets)
+- Thumb-zone optimization
+- Native mobile patterns
+- Simplified navigation
+- Progressive disclosure
+- Mobile-first interactions
+
+🎨 Additional Design Elements
+21. Loading States
+Prompt:
+Design loading state screens and components:
+- Skeleton screens for dashboard loading
+- Spinner/loader for form submissions
+- Progress bar for document uploads
+- "Processing your application" screen with animation
+- Inline loading indicators for buttons
+Use company blue color, smooth animations, professional appearance
+
+22. Empty States
+Prompt:
+Design empty state screens:
+- Dashboard with no applications: Illustration + "No applications yet" message
+- No notifications: Bell icon with "You're all caught up!" message
+- No documents uploaded: Upload icon with encouraging message
+- Search with no results: "No applications found" with suggestion to refine search
+Use friendly illustrations, helpful messaging, clear CTAs
+
+23. Error States
+Prompt:
+Design error state screens and messages:
+- 404 Page Not Found with navigation back to dashboard
+- 500 Server Error with refresh option
+- Form validation errors (inline, clear messaging)
+- Upload failed states with retry button
+- Network connection error banner
+Use red/orange for errors, clear problem description, actionable solutions
+
+📱 Design Specifications Summary
+For Google Stitch, mention these in each prompt:
+
+Modern, clean, professional corporate design
+Color scheme: Blue (#2563eb), White, Gray (#f3f4f6)
+Typography: Sans-serif (Inter, Roboto)
+Components: Rounded corners (8px), subtle shadows
+Spacing: Generous whitespace, 16px base unit
+Icons: Outlined style (Lucide, Heroicons, or similar)
+Buttons: Clear hierarchy (primary, secondary, outline)
+Forms: Clear labels, validation feedback, helpful hints
+Tables: Alternating rows, hover states, sortable headers
+Cards: Subtle shadow, white background, rounded corners
+Navigation: Clear, consistent across pages
+Accessibility: Good contrast ratios, clear focus states
+
+Total Screens: 23 comprehensive UI designs covering the entire onboarding system
