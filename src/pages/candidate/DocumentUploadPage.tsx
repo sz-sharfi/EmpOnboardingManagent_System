@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, FileText, Check, X, Eye, Download, AlertCircle, CheckCircle } from 'lucide-react';
+import { Upload, FileText, X, Eye, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface UploadedDocument {
   id: number;

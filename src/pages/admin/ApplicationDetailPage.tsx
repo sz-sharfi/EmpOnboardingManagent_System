@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, Info, Printer, Download, User, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Printer, Download, AlertCircle, User } from 'lucide-react';
 
 const mockApplication = {
   id: 'APP-001',
@@ -37,7 +37,7 @@ const mockApplication = {
 export default function ApplicationDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [application, setApplication] = useState(mockApplication);
+  const [application] = useState(mockApplication);
   const [activeTab, setActiveTab] = useState<'details' | 'documents' | 'timeline' | 'comments'>('details');
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [showRejectionModal, setShowRejectionModal] = useState(false);
@@ -52,8 +52,8 @@ export default function ApplicationDetailPage() {
   });
 
   useEffect(() => {
-    // In real app, fetch by id. For MVP we use mock
-    setApplication(mockApplication);
+    // In real app, fetch by id. For MVP we use mock data on component mount
+    // setApplication is not needed here as initial state is sufficient for MVP
   }, [id]);
 
   const handleApprove = () => {

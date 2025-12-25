@@ -16,22 +16,22 @@ export const validatePhoneNumber = (phone: string): boolean => {
   return phoneRegex.test(phone.replace(/\D/g, ''));
 };
 
-export const validateForm = (formData: Record<string, any>): { valid: boolean; errors: Record<string, string> } => {
+export const validateForm = (formData: Record<string, unknown>): { valid: boolean; errors: Record<string, string> } => {
   const errors: Record<string, string> = {};
 
-  if (formData.email && !validateEmail(formData.email)) {
+  if (formData.email && !validateEmail(formData.email as string)) {
     errors.email = 'Invalid email address';
   }
 
-  if (formData.password && !validatePassword(formData.password)) {
+  if (formData.password && !validatePassword(formData.password as string)) {
     errors.password = 'Password must be at least 8 characters';
   }
 
-  if (formData.firstName && !validateName(formData.firstName)) {
+  if (formData.firstName && !validateName(formData.firstName as string)) {
     errors.firstName = 'First name must be at least 2 characters';
   }
 
-  if (formData.lastName && !validateName(formData.lastName)) {
+  if (formData.lastName && !validateName(formData.lastName as string)) {
     errors.lastName = 'Last name must be at least 2 characters';
   }
 

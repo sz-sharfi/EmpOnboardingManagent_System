@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Printer, Download, ArrowLeft, User } from 'lucide-react';
+import { Printer, Download, ArrowLeft } from 'lucide-react';
 
 // Mock data for preview
 const mockApplicationData = {
@@ -30,11 +30,6 @@ const mockApplicationData = {
     { level: "Master's Degree", yearOfPassing: '2016', percentage: '89' },
   ],
 };
-
-interface PreviewField {
-  label: string;
-  value: string;
-}
 
 export default function ApplicationPreviewPage() {
   const navigate = useNavigate();

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, LogOut, CheckCircle, Clock, User, Eye, FileText, Upload } from 'lucide-react';
+import { Bell, LogOut, CheckCircle, User, Eye, FileText, Upload } from 'lucide-react';
 
 interface ApplicationData {
   id: string;

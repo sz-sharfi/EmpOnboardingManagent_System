@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Home, FileText, BarChart, Settings, Search, Bell, Menu, Eye, CheckCircle, XCircle, Clock, Users } from 'lucide-react';
+import { Home, FileText, BarChart, Settings, Search, Bell, Eye, CheckCircle, XCircle, Clock, Users } from 'lucide-react';
 
 const mockApplications = [
-  { id: '1', name: 'John Doe', post: 'Software Engineer', date: '2024-12-20', status: 'under_review', photo: null },
-  { id: '2', name: 'Jane Smith', post: 'Product Manager', date: '2024-12-19', status: 'approved', photo: null },
-  { id: '3', name: 'Bob Johnson', post: 'Designer', date: '2024-12-18', status: 'pending', photo: null },
-  { id: '4', name: 'Alice Brown', post: 'Data Analyst', date: '2024-12-17', status: 'under_review', photo: null },
-  { id: '5', name: 'Charlie Wilson', post: 'HR Manager', date: '2024-12-16', status: 'approved', photo: null },
-  { id: '6', name: 'Diana Davis', post: 'Marketing Lead', date: '2024-12-15', status: 'rejected', photo: null },
-  { id: '7', name: 'Eve Martinez', post: 'DevOps Engineer', date: '2024-12-14', status: 'documents_pending', photo: null },
+  { id: '1', name: 'John Doe', email: 'john.doe@example.com', post: 'Software Engineer', date: '2024-12-20', status: 'under_review', photo: null },
+  { id: '2', name: 'Jane Smith', email: 'jane.smith@example.com', post: 'Product Manager', date: '2024-12-19', status: 'approved', photo: null },
+  { id: '3', name: 'Bob Johnson', email: 'bob.johnson@example.com', post: 'Designer', date: '2024-12-18', status: 'pending', photo: null },
+  { id: '4', name: 'Alice Brown', email: 'alice.brown@example.com', post: 'Data Analyst', date: '2024-12-17', status: 'under_review', photo: null },
+  { id: '5', name: 'Charlie Wilson', email: 'charlie.wilson@example.com', post: 'HR Manager', date: '2024-12-16', status: 'approved', photo: null },
+  { id: '6', name: 'Diana Davis', email: 'diana.davis@example.com', post: 'Marketing Lead', date: '2024-12-15', status: 'rejected', photo: null },
+  { id: '7', name: 'Eve Martinez', email: 'eve.martinez@example.com', post: 'DevOps Engineer', date: '2024-12-14', status: 'documents_pending', photo: null },
 ];
 
 const mockMetrics = {
@@ -37,7 +37,6 @@ const StatusBadge = ({ status }: { status: string }) => {
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [applications, setApplications] = useState(mockApplications);
 
@@ -60,14 +59,9 @@ export default function AdminDashboardPage() {
       {/* Top Nav */}
       <header className="fixed top-0 left-0 right-0 bg-white shadow-sm z-50">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button className="md:hidden" onClick={() => setSidebarOpen((s) => !s)}>
-              <Menu size={20} />
-            </button>
-            <div className="flex items-center gap-2">
-              <Home size={22} className="text-blue-600" />
-              <span className="font-bold">Admin Portal</span>
-            </div>
+          <div className="flex items-center gap-2">
+            <Home size={22} className="text-blue-600" />
+            <span className="font-bold">Admin Portal</span>
           </div>
 
           <div className="hidden md:flex items-center gap-3">

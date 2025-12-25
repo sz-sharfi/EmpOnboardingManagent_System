@@ -72,7 +72,7 @@ export default function ApplicationFormPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: unknown) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
