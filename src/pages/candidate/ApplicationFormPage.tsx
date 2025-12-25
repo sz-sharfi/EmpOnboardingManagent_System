@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Save, Send, User, MapPin, Calendar, Phone, Mail, Building, CreditCard, FileText, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Save, Send, User, MapPin, Calendar, Phone, Mail, Building, CreditCard, FileText, Check, CheckCircle } from 'lucide-react';
 
 interface FormData {
   // Step 1
