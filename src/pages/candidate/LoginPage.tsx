@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import supabase from '../../utils/supabaseClient';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -10,8 +11,36 @@ export default function LoginPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // For MVP: just navigate to dashboard
-    navigate('/candidate/dashboard');
+    (async () => {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          alert(error.message);
+          return;
+        }
+        
+        // Ensure profile exists
+        if (data.user) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+              user_id: data.user.id,
+              email: data.user.email || email,
+              role: 'candidate',
+              full_name: data.user.user_metadata?.full_name || ''
+            }, { onConflict: 'user_id' });
+          
+          if (profileError) {
+            console.error('Profile creation error:', profileError);
+          }
+        }
+        
+        navigate('/candidate/dashboard');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        alert(msg || 'Login failed');
+      }
+    })();
   };
 
   return (

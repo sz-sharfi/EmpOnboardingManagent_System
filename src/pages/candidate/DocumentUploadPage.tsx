@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload, FileText, X, Eye, AlertCircle, CheckCircle } from 'lucide-react';
+import supabase from '../../utils/supabaseClient';
 
 interface UploadedDocument {
   id: number;
@@ -30,6 +31,7 @@ export default function DocumentUploadPage() {
   const [uploadedDocuments, setUploadedDocuments] = useState<Record<number, UploadedDocument>>({});
   const [documentStatus, setDocumentStatus] = useState<Record<number, 'not_uploaded' | 'uploaded' | 'verified'>>({});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleFileUpload = (docId: number, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -82,21 +84,58 @@ export default function DocumentUploadPage() {
   };
 
   const handleSubmit = () => {
-    // Check if all required documents are uploaded
-    const requiredDocs = documentTypes.filter((d) => d.required);
-    const allUploaded = requiredDocs.every((doc) => uploadedDocuments[doc.id]);
+    (async () => {
+      // Check if all required documents are uploaded
+      const requiredDocs = documentTypes.filter((d) => d.required);
+      const allUploaded = requiredDocs.every((doc) => uploadedDocuments[doc.id]);
 
-    if (!allUploaded) {
-      const missing = requiredDocs
-        .filter((doc) => !uploadedDocuments[doc.id])
-        .map((doc) => doc.name)
-        .join(', ');
-      alert(`Please upload the following required documents: ${missing}`);
-      return;
-    }
+      if (!allUploaded) {
+        const missing = requiredDocs
+          .filter((doc) => !uploadedDocuments[doc.id])
+          .map((doc) => doc.name)
+          .join(', ');
+        alert(`Please upload the following required documents: ${missing}`);
+        return;
+      }
 
-    // Show success modal
-    setShowSuccessModal(true);
+      const applicationId = (() => { try { return localStorage.getItem('applicationId'); } catch { return null; } })();
+      if (!applicationId) { alert('No application id found. Please save your draft first.'); return; }
+
+      setIsUploading(true);
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const user = userData?.user;
+        if (!user) { alert('Please sign in to upload documents'); setIsUploading(false); return; }
+
+        // Upload each document and insert record
+        const uploads = Object.values(uploadedDocuments);
+        for (const doc of uploads) {
+          const file = doc.file;
+          const path = `applications/${applicationId}/${Date.now()}_${file.name}`;
+          const { data: uploadData, error: uploadErr } = await supabase.storage.from('documents').upload(path, file);
+          if (uploadErr) { console.error(uploadErr); alert('Upload failed: ' + uploadErr.message); continue; }
+
+          const { error: insertErr } = await supabase.from('documents').insert({
+            app_id: applicationId,
+            document_type: file.name,
+            storage_path: uploadData.path,
+            file_size_bytes: file.size,
+          } as unknown as Record<string, unknown>);
+          if (insertErr) { console.error(insertErr); alert('Failed to record document: ' + insertErr.message); }
+        }
+
+        // Recompute progress
+        await supabase.rpc('compute_progress', { p_app_id: applicationId });
+
+        setShowSuccessModal(true);
+      } catch (err: unknown) {
+        console.error(err);
+        const msg = err instanceof Error ? err.message : String(err);
+        alert(msg || 'Document upload failed');
+      } finally {
+        setIsUploading(false);
+      }
+    })();
   };
 
   const requiredUploaded = documentTypes.filter((d) => d.required).filter((d) => uploadedDocuments[d.id]).length;
@@ -260,7 +299,7 @@ export default function DocumentUploadPage() {
         <div className="border-t bg-white p-4 mt-8 rounded-lg sticky bottom-0 flex justify-center">
           <button
             onClick={handleSubmit}
-            disabled={!canSubmit}
+            disabled={!canSubmit || isUploading}
             className={`px-8 py-3 rounded-lg font-medium flex items-center gap-2 max-w-md w-full justify-center transition ${
               canSubmit
                 ? 'bg-green-600 text-white hover:bg-green-700'
@@ -268,7 +307,7 @@ export default function DocumentUploadPage() {
             }`}
           >
             <CheckCircle size={20} />
-            Submit All Documents ({requiredUploaded}/{totalRequired} required)
+            {isUploading ? 'Uploading...' : `Submit All Documents (${requiredUploaded}/${totalRequired} required)`}
           </button>
         </div>
       </div>
