@@ -377,22 +377,22 @@ export default function DashboardPage() {
 
             {/* Upload Documents */}
             <button
-              onClick={() => application?.status === 'accepted' && navigate('/candidate/documents')}
-              disabled={application?.status !== 'accepted'}
+              onClick={() => application && navigate('/candidate/documents')}
+              disabled={!application || application.status === 'draft'}
               className={`w-full p-6 border-2 rounded-lg bg-white text-left transition ${
-                application?.status === 'accepted'
-                  ? 'border-green-500 hover:shadow-lg cursor-pointer'
+                application && application.status !== 'draft'
+                  ? 'border-blue-500 hover:shadow-lg cursor-pointer'
                   : 'border-gray-300 opacity-50 cursor-not-allowed'
               }`}
             >
               <div className="flex items-start gap-3">
-                <Upload className={`flex-shrink-0 mt-1 ${application?.status === 'accepted' ? 'text-green-600' : 'text-gray-400'}`} size={24} />
+                <Upload className={`flex-shrink-0 mt-1 ${application && application.status !== 'draft' ? 'text-blue-600' : 'text-gray-400'}`} size={24} />
                 <div>
-                  <h4 className="font-semibold text-gray-800">Upload Documents</h4>
+                  <h4 className="font-semibold text-gray-800">View Documents</h4>
                   <p className="text-sm text-gray-600">
-                    {application?.status === 'accepted' 
-                      ? 'Upload required documents' 
-                      : 'Available after approval'}
+                    {application && application.status !== 'draft'
+                      ? 'View your uploaded documents' 
+                      : 'Available after submission'}
                   </p>
                 </div>
               </div>

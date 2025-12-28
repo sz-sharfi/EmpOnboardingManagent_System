@@ -197,6 +197,7 @@ export default function ApplicationFormPage() {
 
   const handleDocumentUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    
     if (file) {
       // Validate file type
       const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
@@ -420,8 +421,42 @@ export default function ApplicationFormPage() {
         finalAppId = insertData.id;
       }
 
-      // Step 2: Upload documents
-      console.log('Uploading documents...');
+      // Step 2: Upload photo if exists
+      if (formData.photo) {
+        console.log('Uploading photo...');
+        const fileExt = formData.photo.name.split('.').pop();
+        const fileName = `${finalAppId}/Photo_${Date.now()}.${fileExt}`;
+        
+        const { data: photoUploadData, error: photoUploadError } = await supabase.storage
+          .from('documents')
+          .upload(fileName, formData.photo, {
+            cacheControl: '3600',
+            upsert: false
+          });
+
+        if (photoUploadError) {
+          console.error('Failed to upload photo:', photoUploadError);
+          // Don't fail the whole submission, just log the error
+        } else {
+          console.log('✓ Uploaded photo');
+          
+          // Create document record for photo
+          const { error: photoInsertError } = await supabase
+            .from('documents')
+            .insert({
+              app_id: finalAppId,
+              document_type: 'Photo',
+              storage_path: photoUploadData.path,
+              file_size_bytes: formData.photo.size
+            });
+
+          if (photoInsertError) {
+            console.error('Failed to create photo record:', photoInsertError);
+          }
+        }
+      }
+
+      // Step 3: Upload documents
       const uploadedDocs = [];
       
       for (const doc of documents) {
@@ -429,7 +464,6 @@ export default function ApplicationFormPage() {
           const fileExt = doc.file.name.split('.').pop();
           const fileName = `${finalAppId}/${doc.type.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.${fileExt}`;
           
-          console.log(`Uploading ${doc.type}...`);
           const { data: uploadData, error: uploadError } = await supabase.storage
             .from('documents')
             .upload(fileName, doc.file, {
@@ -441,8 +475,6 @@ export default function ApplicationFormPage() {
             console.error(`Failed to upload ${doc.type}:`, uploadError);
             throw new Error(`Failed to upload ${doc.type}: ${uploadError.message}`);
           }
-
-          console.log(`✓ Uploaded ${doc.type}`);
           
           // Create document record in database
           const { error: docInsertError } = await supabase
@@ -463,9 +495,7 @@ export default function ApplicationFormPage() {
         }
       }
 
-      console.log('All documents uploaded:', uploadedDocs);
-
-      // Step 3: Submit the application (change status to submitted)
+      // Step 4: Submit the application (change status to submitted)
       console.log('Submitting application with ID:', finalAppId);
       
       const { data: submitData, error: submitError } = await supabase

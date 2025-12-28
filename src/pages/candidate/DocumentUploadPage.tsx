@@ -1,338 +1,275 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, FileText, X, Eye, AlertCircle, CheckCircle } from 'lucide-react';
+import { FileText, Download, ArrowLeft, CheckCircle, Clock, XCircle } from 'lucide-react';
 import supabase from '../../utils/supabaseClient';
 
-interface UploadedDocument {
-  id: number;
-  file: File;
-  preview?: string;
+interface DocumentData {
+  id: string;
+  document_type: string;
+  storage_path: string;
+  file_size_bytes: number;
+  verification_status: string;
+  created_at: string;
+  verified_at: string | null;
+  rejection_reason: string | null;
 }
-
-interface DocumentType {
-  id: number;
-  name: string;
-  required: boolean;
-}
-
-const documentTypes: DocumentType[] = [
-  { id: 1, name: 'PAN Card', required: true },
-  { id: 2, name: 'Aadhar Card', required: true },
-  { id: 3, name: 'Passport', required: false },
-  { id: 4, name: '10th Certificate', required: true },
-  { id: 5, name: '12th Certificate', required: true },
-  { id: 6, name: "Bachelor's Degree", required: true },
-  { id: 7, name: "Master's Degree", required: false },
-  { id: 8, name: 'Police Clearance Certificate', required: true },
-];
 
 export default function DocumentUploadPage() {
   const navigate = useNavigate();
-  const [uploadedDocuments, setUploadedDocuments] = useState<Record<number, UploadedDocument>>({});
-  const [documentStatus, setDocumentStatus] = useState<Record<number, 'not_uploaded' | 'uploaded' | 'verified'>>({});
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const [documents, setDocuments] = useState<DocumentData[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleFileUpload = (docId: number, event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  useEffect(() => {
+    fetchDocuments();
+  }, []);
 
-    // Validate file type
-    const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
-    if (!validTypes.includes(file.type)) {
-      alert('Invalid file type. Please upload PDF, JPG, or PNG.');
-      return;
-    }
-
-    // Validate file size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size exceeds 5MB limit.');
-      return;
-    }
-
-    // Store file
-    let preview: string | undefined;
-    if (file.type.startsWith('image/')) {
-      preview = URL.createObjectURL(file);
-    }
-
-    setUploadedDocuments((prev) => ({
-      ...prev,
-      [docId]: { id: docId, file, preview },
-    }));
-
-    setDocumentStatus((prev) => ({
-      ...prev,
-      [docId]: 'uploaded',
-    }));
-  };
-
-  const handleFileRemove = (docId: number) => {
-    setUploadedDocuments((prev) => {
-      const updated = { ...prev };
-      if (updated[docId]?.preview) {
-        URL.revokeObjectURL(updated[docId].preview!);
-      }
-      delete updated[docId];
-      return updated;
-    });
-
-    setDocumentStatus((prev) => ({
-      ...prev,
-      [docId]: 'not_uploaded',
-    }));
-  };
-
-  const handleSubmit = () => {
-    (async () => {
-      // Check if all required documents are uploaded
-      const requiredDocs = documentTypes.filter((d) => d.required);
-      const allUploaded = requiredDocs.every((doc) => uploadedDocuments[doc.id]);
-
-      if (!allUploaded) {
-        const missing = requiredDocs
-          .filter((doc) => !uploadedDocuments[doc.id])
-          .map((doc) => doc.name)
-          .join(', ');
-        alert(`Please upload the following required documents: ${missing}`);
+  const fetchDocuments = async () => {
+    try {
+      setLoading(true);
+      
+      // Get authenticated user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate('/candidate/login');
         return;
       }
 
-      const applicationId = (() => { try { return localStorage.getItem('applicationId'); } catch { return null; } })();
-      if (!applicationId) { alert('No application id found. Please save your draft first.'); return; }
+      // Get user's application
+      const { data: appData, error: appError } = await supabase
+        .from('applications')
+        .select('id')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
 
-      setIsUploading(true);
-      try {
-        const { data: userData } = await supabase.auth.getUser();
-        const user = userData?.user;
-        if (!user) { alert('Please sign in to upload documents'); setIsUploading(false); return; }
-
-        // Upload each document and insert record
-        const uploads = Object.values(uploadedDocuments);
-        for (const doc of uploads) {
-          const file = doc.file;
-          const path = `applications/${applicationId}/${Date.now()}_${file.name}`;
-          const { data: uploadData, error: uploadErr } = await supabase.storage.from('documents').upload(path, file);
-          if (uploadErr) { console.error(uploadErr); alert('Upload failed: ' + uploadErr.message); continue; }
-
-          const { error: insertErr } = await supabase.from('documents').insert({
-            app_id: applicationId,
-            document_type: file.name,
-            storage_path: uploadData.path,
-            file_size_bytes: file.size,
-          } as unknown as Record<string, unknown>);
-          if (insertErr) { console.error(insertErr); alert('Failed to record document: ' + insertErr.message); }
-        }
-
-        // Recompute progress
-        await supabase.rpc('compute_progress', { p_app_id: applicationId });
-
-        setShowSuccessModal(true);
-      } catch (err: unknown) {
-        console.error(err);
-        const msg = err instanceof Error ? err.message : String(err);
-        alert(msg || 'Document upload failed');
-      } finally {
-        setIsUploading(false);
+      if (appError || !appData) {
+        console.error('Error fetching application:', appError);
+        return;
       }
-    })();
-  };
 
-  const requiredUploaded = documentTypes.filter((d) => d.required).filter((d) => uploadedDocuments[d.id]).length;
-  const totalRequired = documentTypes.filter((d) => d.required).length;
-  const canSubmit = requiredUploaded === totalRequired;
+      // Fetch documents for this application
+      const { data: docsData, error: docsError } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('app_id', appData.id)
+        .order('created_at', { ascending: false });
+
+      if (docsError) {
+        console.error('Error fetching documents:', docsError);
+        return;
+      }
+
+      if (docsData) {
+        setDocuments(docsData);
+        console.log('Fetched documents:', docsData);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB'];
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const handleDownloadDocument = async (doc: DocumentData) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .createSignedUrl(doc.storage_path, 3600);
+
+      if (error) {
+        console.error('Storage error:', error);
+        throw error;
+      }
+
+      if (data?.signedUrl) {
+        // Fetch the file and download it
+        const response = await fetch(data.signedUrl);
+        const blob = await response.blob();
+        
+        // Get file extension from storage path
+        const fileExt = doc.storage_path.split('.').pop() || 'pdf';
+        const fileName = `${doc.document_type}.${fileExt}`;
+        
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } else {
+        alert('Could not generate download URL');
+      }
+    } catch (error: any) {
+      console.error('Error downloading document:', error);
+      alert(`Failed to download document: ${error.message || 'Unknown error'}`);
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'verified':
+        return <CheckCircle className="text-green-500" size={24} />;
+      case 'rejected':
+        return <XCircle className="text-red-500" size={24} />;
+      default:
+        return <Clock className="text-yellow-500" size={24} />;
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const configs = {
+      verified: 'bg-green-100 text-green-800',
+      rejected: 'bg-red-100 text-red-800',
+      pending: 'bg-yellow-100 text-yellow-800'
+    };
+    return configs[status as keyof typeof configs] || configs.pending;
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Document Upload</h1>
-        <p className="text-gray-600 mb-8">Please upload all required documents to complete your application</p>
-
-        {/* Success Banner */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-8 flex items-start gap-3">
-          <CheckCircle className="text-green-500 flex-shrink-0 mt-0.5" size={24} />
-          <div>
-            <h3 className="font-semibold text-green-900">Application Approved</h3>
-            <p className="text-sm text-green-800">Your application has been approved! Please upload the following documents to proceed.</p>
-          </div>
-        </div>
-
-        {/* Info Box */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 flex items-start gap-3">
-          <AlertCircle className="text-blue-500 flex-shrink-0 mt-0.5" size={24} />
-          <p className="text-sm text-blue-800">
-            <strong>Accepted formats:</strong> PDF, JPG, PNG | <strong>Maximum file size:</strong> 5MB per document
-          </p>
-        </div>
-
-        {/* Document Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {documentTypes.map((doc) => {
-            const uploaded = uploadedDocuments[doc.id];
-            const status = documentStatus[doc.id] || 'not_uploaded';
-            const fileInputId = `file-input-${doc.id}`;
-
-            return (
-              <div
-                key={doc.id}
-                className={`bg-white rounded-lg shadow-md p-6 border-2 border-dashed transition min-h-80 flex flex-col justify-between ${
-                  status === 'not_uploaded'
-                    ? 'border-gray-300 hover:border-blue-400'
-                    : 'border-green-300'
-                }`}
-              >
-                {/* Header */}
-                <div>
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-lg font-semibold text-gray-800">{doc.name}</h3>
-                    {doc.required && (
-                      <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded font-medium">
-                        Required
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Icon Area */}
-                  <div className="flex justify-center mb-4">
-                    <FileText size={48} className="text-gray-400" />
-                  </div>
-
-                  {/* Status Badge */}
-                  <div className="mb-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        status === 'not_uploaded'
-                          ? 'bg-gray-100 text-gray-600'
-                          : status === 'uploaded'
-                          ? 'bg-blue-100 text-blue-600'
-                          : 'bg-green-100 text-green-600'
-                      }`}
-                    >
-                      {status === 'not_uploaded'
-                        ? 'Not Uploaded'
-                        : status === 'uploaded'
-                        ? 'Uploaded'
-                        : 'Verified'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Upload/File Preview Area */}
-                {status === 'not_uploaded' ? (
-                  <>
-                    <input
-                      id={fileInputId}
-                      type="file"
-                      accept="image/jpeg,image/png,application/pdf"
-                      onChange={(e) => handleFileUpload(doc.id, e)}
-                      className="hidden"
-                    />
-                    <label
-                      htmlFor={fileInputId}
-                      className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium cursor-pointer text-center flex items-center justify-center gap-2"
-                    >
-                      <Upload size={20} />
-                      Upload
-                    </label>
-                  </>
-                ) : (
-                  <div className="space-y-3">
-                    {uploaded?.preview && (
-                      <img
-                        src={uploaded.preview}
-                        alt="Preview"
-                        className="w-full max-h-32 object-cover rounded border border-gray-300"
-                      />
-                    )}
-
-                    <div className="bg-gray-50 p-3 rounded">
-                      <p className="text-sm font-medium text-gray-800 truncate">{uploaded?.file.name}</p>
-                      <p className="text-xs text-gray-500">{formatFileSize(uploaded?.file.size || 0)}</p>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button className="flex-1 p-2 hover:bg-gray-100 rounded transition flex items-center justify-center gap-1 text-gray-600">
-                        <Eye size={18} />
-                        View
-                      </button>
-                      <input
-                        id={`${fileInputId}-replace`}
-                        type="file"
-                        accept="image/jpeg,image/png,application/pdf"
-                        onChange={(e) => {
-                          handleFileRemove(doc.id);
-                          handleFileUpload(doc.id, e);
-                        }}
-                        className="hidden"
-                      />
-                      <label
-                        htmlFor={`${fileInputId}-replace`}
-                        className="flex-1 p-2 hover:bg-gray-100 rounded transition flex items-center justify-center gap-1 text-gray-600 cursor-pointer"
-                      >
-                        Replace
-                      </label>
-                      <button
-                        onClick={() => handleFileRemove(doc.id)}
-                        className="flex-1 p-2 hover:bg-gray-100 rounded transition flex items-center justify-center gap-1 text-red-600"
-                      >
-                        <X size={18} />
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Submit Button */}
-        <div className="border-t bg-white p-4 mt-8 rounded-lg sticky bottom-0 flex justify-center">
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm p-4 mb-8">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           <button
-            onClick={handleSubmit}
-            disabled={!canSubmit || isUploading}
-            className={`px-8 py-3 rounded-lg font-medium flex items-center gap-2 max-w-md w-full justify-center transition ${
-              canSubmit
-                ? 'bg-green-600 text-white hover:bg-green-700'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
+            onClick={() => navigate('/candidate/dashboard')}
+            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
           >
-            <CheckCircle size={20} />
-            {isUploading ? 'Uploading...' : `Submit All Documents (${requiredUploaded}/${totalRequired} required)`}
+            <ArrowLeft size={20} />
+            Back to Dashboard
           </button>
+          <h1 className="text-2xl font-bold text-gray-900">My Documents</h1>
+          <div className="w-24"></div> {/* Spacer for centering */}
         </div>
-      </div>
+      </header>
 
-      {/* Success Modal */}
-      {showSuccessModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full text-center">
-            <CheckCircle className="mx-auto mb-4 text-green-500" size={64} />
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Documents Submitted Successfully!</h3>
-            <p className="text-gray-600 mb-6">
-              Your documents are now under review. You will be notified once verified.
-            </p>
-            <button
-              onClick={() => {
-                setShowSuccessModal(false);
-                navigate('/candidate/dashboard');
-              }}
-              className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition font-medium"
-            >
-              Go to Dashboard
-            </button>
+      <main className="max-w-7xl mx-auto px-4 pb-8">
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading your documents...</p>
           </div>
-        </div>
-      )}
+        ) : (
+          <>
+            {/* Info Banner */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-start gap-3">
+              <FileText className="text-blue-500 flex-shrink-0 mt-0.5" size={24} />
+              <div>
+                <h3 className="font-semibold text-blue-900">Document Overview</h3>
+                <p className="text-sm text-blue-800">
+                  All documents were uploaded through your application form. 
+                  You can view and download them here.
+                </p>
+              </div>
+            </div>
+
+            {/* Documents Grid */}
+            {documents.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {documents.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="bg-white rounded-lg shadow-md p-6 border-2 transition hover:shadow-lg"
+                  >
+                    {/* Document Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-start gap-3 flex-1">
+                        {getStatusIcon(doc.verification_status)}
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-gray-800 mb-1">
+                            {doc.document_type}
+                          </h3>
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(doc.verification_status)}`}
+                          >
+                            {doc.verification_status.charAt(0).toUpperCase() + doc.verification_status.slice(1)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Document Details */}
+                    <div className="bg-gray-50 rounded-lg p-3 mb-4 space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">File Size:</span>
+                        <span className="font-medium text-gray-900">
+                          {formatFileSize(doc.file_size_bytes)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Uploaded:</span>
+                        <span className="font-medium text-gray-900">
+                          {formatDate(doc.created_at)}
+                        </span>
+                      </div>
+                      {doc.verified_at && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Verified:</span>
+                          <span className="font-medium text-gray-900">
+                            {formatDate(doc.verified_at)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Rejection Reason */}
+                    {doc.rejection_reason && (
+                      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-xs font-medium text-red-800 mb-1">Rejection Reason:</p>
+                        <p className="text-sm text-red-700">{doc.rejection_reason}</p>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <button
+                      onClick={() => handleDownloadDocument(doc)}
+                      className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2"
+                    >
+                      <Download size={18} />
+                      Download Document
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16 bg-white rounded-lg shadow">
+                <FileText className="mx-auto text-gray-300 mb-4" size={64} />
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">No Documents Found</h3>
+                <p className="text-gray-500 mb-6">
+                  You haven't uploaded any documents yet through your application form.
+                </p>
+                <button
+                  onClick={() => navigate('/candidate/apply')}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+                >
+                  Go to Application Form
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </main>
     </div>
   );
 }
