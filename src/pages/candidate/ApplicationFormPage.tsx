@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Save, Check, CheckCircle, User } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Save, Check, CheckCircle, User, Upload, FileText, X } from 'lucide-react';
 import supabase from '../../utils/supabaseClient';
 import '../../utils/supabaseDebug'; // Import debug utilities
 
@@ -29,6 +29,12 @@ interface FormData {
   declaration: boolean;
   place: string;
   date: string;
+}
+
+interface DocumentFile {
+  type: 'PAN Card' | 'Aadhar Card' | '10th Certificate' | '12th Certificate' | "Bachelor's Certificate";
+  file: File | null;
+  preview: string | null;
 }
 
 const initialFormData: FormData = {
@@ -73,6 +79,14 @@ export default function ApplicationFormPage() {
   const [appId, setAppId] = useState<string | null>(() => {
     try { return localStorage.getItem('applicationId'); } catch { return null; }
   });
+  const [documents, setDocuments] = useState<DocumentFile[]>([
+    { type: 'PAN Card', file: null, preview: null },
+    { type: 'Aadhar Card', file: null, preview: null },
+    { type: '10th Certificate', file: null, preview: null },
+    { type: '12th Certificate', file: null, preview: null },
+    { type: "Bachelor's Certificate", file: null, preview: null },
+  ]);
+  const [uploadingDocs, setUploadingDocs] = useState(false);
 
   // Check authentication and load existing draft on mount
   useEffect(() => {
@@ -166,10 +180,74 @@ export default function ApplicationFormPage() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const validateStep4 = () => {
+    const newErrors: Record<string, string> = {};
+    const requiredDocs = ['PAN Card', 'Aadhar Card', '10th Certificate'];
+    
+    requiredDocs.forEach(docType => {
+      const doc = documents.find(d => d.type === docType);
+      if (!doc || !doc.file) {
+        newErrors[docType] = `${docType} is required`;
+      }
+    });
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleDocumentUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Please upload only PDF, JPEG, or PNG files');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size should not exceed 5MB');
+        return;
+      }
+      
+      const newDocuments = [...documents];
+      newDocuments[index].file = file;
+      
+      // Create preview for images
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          newDocuments[index].preview = reader.result as string;
+          setDocuments(newDocuments);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        newDocuments[index].preview = null;
+        setDocuments(newDocuments);
+      }
+      
+      // Clear error for this document
+      if (errors[newDocuments[index].type]) {
+        const newErrors = { ...errors };
+        delete newErrors[newDocuments[index].type];
+        setErrors(newErrors);
+      }
+    }
+  };
+
+  const handleRemoveDocument = (index: number) => {
+    const newDocuments = [...documents];
+    newDocuments[index].file = null;
+    newDocuments[index].preview = null;
+    setDocuments(newDocuments);
+  };
+
   const handleNext = () => {
     if (currentStep === 1 && !validateStep1()) return;
     if (currentStep === 2 && !validateStep2()) return;
-    if (currentStep < 3) setCurrentStep(currentStep + 1);
+    if (currentStep === 3 && !validateStep3()) return;
+    if (currentStep < 4) setCurrentStep(currentStep + 1);
   };
 
   const handlePrevious = () => {
@@ -273,12 +351,14 @@ export default function ApplicationFormPage() {
   };
 
   const handleSubmit = async () => {
-    if (!validateStep3()) {
-      alert('Please complete all required fields and accept the declaration.');
+    if (!validateStep4()) {
+      alert('Please upload all required documents.');
       return;
     }
 
     try {
+      setUploadingDocs(true);
+      
       // Get authenticated user
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       
@@ -290,13 +370,11 @@ export default function ApplicationFormPage() {
 
       const formDataForDB = prepareFormDataForDB();
       console.log('Submitting application for user:', user.id);
-      console.log('Form data:', formDataForDB);
 
       let finalAppId = appId;
 
       // Step 1: Save/Update the draft with final data
       if (appId && appId !== 'pending') {
-        // Update existing application
         console.log('Updating existing application before submit:', appId);
         
         const { error: updateError } = await supabase
@@ -316,7 +394,6 @@ export default function ApplicationFormPage() {
 
         finalAppId = appId;
       } else {
-        // Create new application
         console.log('Creating new application for submission');
         
         const { data: insertData, error: insertError } = await supabase
@@ -343,7 +420,52 @@ export default function ApplicationFormPage() {
         finalAppId = insertData.id;
       }
 
-      // Step 2: Submit the application (change status to submitted)
+      // Step 2: Upload documents
+      console.log('Uploading documents...');
+      const uploadedDocs = [];
+      
+      for (const doc of documents) {
+        if (doc.file) {
+          const fileExt = doc.file.name.split('.').pop();
+          const fileName = `${finalAppId}/${doc.type.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.${fileExt}`;
+          
+          console.log(`Uploading ${doc.type}...`);
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('documents')
+            .upload(fileName, doc.file, {
+              cacheControl: '3600',
+              upsert: false
+            });
+
+          if (uploadError) {
+            console.error(`Failed to upload ${doc.type}:`, uploadError);
+            throw new Error(`Failed to upload ${doc.type}: ${uploadError.message}`);
+          }
+
+          console.log(`✓ Uploaded ${doc.type}`);
+          
+          // Create document record in database
+          const { error: docInsertError } = await supabase
+            .from('documents')
+            .insert({
+              app_id: finalAppId,
+              document_type: doc.type,
+              storage_path: uploadData.path,
+              file_size_bytes: doc.file.size
+            });
+
+          if (docInsertError) {
+            console.error(`Failed to create document record for ${doc.type}:`, docInsertError);
+            throw new Error(`Failed to save ${doc.type} record: ${docInsertError.message}`);
+          }
+          
+          uploadedDocs.push(doc.type);
+        }
+      }
+
+      console.log('All documents uploaded:', uploadedDocs);
+
+      // Step 3: Submit the application (change status to submitted)
       console.log('Submitting application with ID:', finalAppId);
       
       const { data: submitData, error: submitError } = await supabase
@@ -373,12 +495,14 @@ export default function ApplicationFormPage() {
       }
       
       setAppId(null);
+      setUploadingDocs(false);
       setShowSuccessModal(true);
       
     } catch (err: unknown) {
       console.error('Submit exception:', err);
       const msg = err instanceof Error ? err.message : String(err);
       alert('Failed to submit application: ' + msg);
+      setUploadingDocs(false);
     }
   };
 
@@ -388,12 +512,12 @@ export default function ApplicationFormPage() {
         {/* Step Indicator */}
         <div className="mb-8">
           <div className="flex justify-between items-center">
-            {[1, 2, 3].map((step) => (
+            {[1, 2, 3, 4].map((step) => (
               <div key={step} className="flex items-center flex-1">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white ${step < currentStep ? 'bg-green-500' : step === currentStep ? 'bg-blue-600' : 'bg-gray-300'}`}>
                   {step < currentStep ? <Check size={20} /> : step}
                 </div>
-                <div className="flex-1 h-1 mx-2 bg-gray-300 hidden sm:block">{step < currentStep && <div className="h-full bg-green-500" />}</div>
+                {step < 4 && <div className="flex-1 h-1 mx-2 bg-gray-300 hidden sm:block">{step < currentStep && <div className="h-full bg-green-500" />}</div>}
               </div>
             ))}
           </div>
@@ -401,6 +525,7 @@ export default function ApplicationFormPage() {
             <span>Basic Info</span>
             <span>Personal & Banking</span>
             <span>Education</span>
+            <span>Documents</span>
           </div>
         </div>
 
@@ -459,11 +584,93 @@ export default function ApplicationFormPage() {
             </>
           )}
 
+          {/* STEP 4 - Documents Upload */}
+          {currentStep === 4 && (
+            <>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Application Form - Upload Documents</h2>
+              <p className="text-gray-600 mb-6">Please upload the following documents. Documents marked with * are required.</p>
+              
+              <div className="space-y-6">
+                {documents.map((doc, index) => {
+                  const isRequired = ['PAN Card', 'Aadhar Card', '10th Certificate'].includes(doc.type);
+                  return (
+                    <div key={index} className="border rounded-lg p-6 bg-gray-50">
+                      <div className="flex items-center justify-between mb-4">
+                        <label className="text-sm font-medium text-gray-700">
+                          {doc.type} {isRequired && <span className="text-red-500">*</span>}
+                        </label>
+                        {doc.file && (
+                          <button
+                            onClick={() => handleRemoveDocument(index)}
+                            className="text-red-500 hover:text-red-700 p-1"
+                            type="button"
+                          >
+                            <X size={20} />
+                          </button>
+                        )}
+                      </div>
+
+                      {!doc.file ? (
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:bg-white transition-colors">
+                          <input
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(e) => handleDocumentUpload(index, e)}
+                            className="hidden"
+                            id={`doc-upload-${index}`}
+                          />
+                          <label htmlFor={`doc-upload-${index}`} className="cursor-pointer">
+                            <Upload className="mx-auto mb-3 text-gray-400" size={40} />
+                            <p className="text-gray-600 mb-1">Click to upload or drag and drop</p>
+                            <p className="text-xs text-gray-500">PDF, JPEG, PNG (Max 5MB)</p>
+                          </label>
+                        </div>
+                      ) : (
+                        <div className="bg-white border rounded-lg p-4">
+                          <div className="flex items-center gap-4">
+                            {doc.preview ? (
+                              <img
+                                src={doc.preview}
+                                alt={doc.type}
+                                className="w-20 h-20 object-cover rounded border"
+                              />
+                            ) : (
+                              <div className="w-20 h-20 bg-gray-200 rounded border flex items-center justify-center">
+                                <FileText className="text-gray-400" size={32} />
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-900">{doc.file.name}</p>
+                              <p className="text-sm text-gray-500">
+                                {(doc.file.size / 1024).toFixed(2)} KB
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {errors[doc.type] && (
+                        <p className="text-red-500 text-sm mt-2">{errors[doc.type]}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Note:</strong> Make sure all documents are clear and readable. 
+                  Uploaded documents will be verified by the admin before approval.
+                </p>
+              </div>
+            </>
+          )}
+
           {/* Buttons */}
           <div className="flex gap-3 mt-8 justify-between">
             <button onClick={handlePrevious} disabled={currentStep === 1} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"><ChevronLeft className="inline mr-2" size={18} />Previous</button>
-            <button onClick={handleSaveAsDraft} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"><Save className="inline mr-2" size={18} />Save Draft</button>
-            {currentStep < 3 ? <button onClick={handleNext} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Next <ChevronRight className="inline ml-2" size={18} /></button> : <button onClick={handleSubmit} className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"><CheckCircle className="inline mr-2" size={18} />Submit</button>}
+            {currentStep < 4 && <button onClick={handleSaveAsDraft} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"><Save className="inline mr-2" size={18} />Save Draft</button>}
+            {currentStep < 4 ? <button onClick={handleNext} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Next <ChevronRight className="inline ml-2" size={18} /></button> : <button onClick={handleSubmit} disabled={uploadingDocs} className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">{uploadingDocs ? 'Uploading...' : <><CheckCircle className="inline mr-2" size={18} />Submit Application</>}</button>}
           </div>
         </div>
       </div>

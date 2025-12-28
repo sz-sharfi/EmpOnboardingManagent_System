@@ -1,46 +1,52 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, Printer, Download, AlertCircle, User } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Printer, Download, AlertCircle } from 'lucide-react';
+import supabase from '../../utils/supabaseClient';
 
-const mockApplication = {
-  id: 'APP-001',
-  name: 'John Doe',
-  photo: null,
-  status: 'under_review',
-  postAppliedFor: 'Software Engineer',
-  fatherOrHusbandName: 'Richard Doe',
-  permanentAddress: '123 Main Street, City, State - 123456',
-  communicationAddress: '123 Main Street, City, State - 123456',
-  dateOfBirth: '1995-01-15',
-  sex: 'Male',
-  nationality: 'Indian',
-  maritalStatus: 'Single',
-  religion: 'Not Specified',
-  mobileNo: '+91 9876543210',
-  email: 'john.doe@email.com',
-  bankName: 'State Bank of India',
-  accountNo: '1234567890',
-  ifsc: 'SBIN0001234',
-  branch: 'Main Branch',
-  panNo: 'ABCDE1234F',
-  aadharNo: '1234 5678 9012',
-  education: [
-    { level: "10th", yearOfPassing: '2010', percentage: '85.5' },
-    { level: "12th", yearOfPassing: '2012', percentage: '88.0' },
-    { level: "Bachelor's", yearOfPassing: '2016', percentage: '78.5' },
-  ],
-  place: 'Mumbai',
-  date: '2024-12-24',
-  submittedAt: '2024-12-20 10:30 AM',
-};
+interface ApplicationData {
+  id: string;
+  user_id: string;
+  status: string;
+  submitted_at: string;
+  created_at: string;
+  form_data: {
+    fullName?: string;
+    postAppliedFor?: string;
+    fatherOrHusbandName?: string;
+    permanentAddress?: string;
+    communicationAddress?: string;
+    dateOfBirth?: string;
+    sex?: string;
+    nationality?: string;
+    maritalStatus?: string;
+    religion?: string;
+    mobileNo?: string;
+    email?: string;
+    bankName?: string;
+    accountNo?: string;
+    ifscCode?: string;
+    branch?: string;
+    panNo?: string;
+    aadharNo?: string;
+    education?: Array<{ level: string; yearOfPassing: string; percentage: string }>;
+    place?: string;
+    date?: string;
+  };
+  profiles: {
+    email: string;
+    full_name: string;
+  };
+}
 
 export default function ApplicationDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [application] = useState(mockApplication);
+  const [application, setApplication] = useState<ApplicationData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'details' | 'documents' | 'timeline' | 'comments'>('details');
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
   const [notes, setNotes] = useState('');
   const [checklist, setChecklist] = useState<Record<string, boolean>>({
     basic: false,
@@ -52,9 +58,43 @@ export default function ApplicationDetailPage() {
   });
 
   useEffect(() => {
-    // In real app, fetch by id. For MVP we use mock data on component mount
-    // setApplication is not needed here as initial state is sufficient for MVP
+    if (id) {
+      fetchApplication();
+    }
   }, [id]);
+
+  const fetchApplication = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('applications')
+        .select(`
+          *,
+          profiles!applications_user_id_fkey (
+            email,
+            full_name
+          )
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+
+      // Transform profiles if it's an array
+      const transformedData = {
+        ...data,
+        profiles: Array.isArray(data.profiles) ? data.profiles[0] : data.profiles
+      } as ApplicationData;
+
+      setApplication(transformedData);
+    } catch (error) {
+      console.error('Error fetching application:', error);
+      alert('Failed to load application details');
+      navigate('/admin/dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleApprove = () => {
     setShowApprovalModal(true);
@@ -64,17 +104,73 @@ export default function ApplicationDetailPage() {
     setShowRejectionModal(true);
   };
 
-  const confirmApprove = () => {
-    console.log('Approved', application.id);
-    setShowApprovalModal(false);
-    navigate('/admin/dashboard');
+  const confirmApprove = async () => {
+    try {
+      const { error } = await supabase.rpc('approve_application', { p_app_id: id });
+      
+      if (error) throw error;
+      
+      alert('Application approved successfully!');
+      setShowApprovalModal(false);
+      navigate('/admin/dashboard');
+    } catch (error) {
+      console.error('Error approving application:', error);
+      alert('Failed to approve application');
+    }
   };
 
-  const confirmReject = (reason: string) => {
-    console.log('Rejected', application.id, reason);
-    setShowRejectionModal(false);
-    navigate('/admin/dashboard');
+  const confirmReject = async () => {
+    if (!rejectionReason.trim()) {
+      alert('Please enter a rejection reason');
+      return;
+    }
+
+    try {
+      const { error } = await supabase.rpc('reject_application', { 
+        p_app_id: id,
+        p_rejection_reason: rejectionReason
+      });
+      
+      if (error) throw error;
+      
+      alert('Application rejected');
+      setShowRejectionModal(false);
+      navigate('/admin/dashboard');
+    } catch (error) {
+      console.error('Error rejecting application:', error);
+      alert('Failed to reject application');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-xl font-semibold text-gray-600">Loading application...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!application) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-xl font-semibold text-gray-600">Application not found</div>
+          <button 
+            onClick={() => navigate('/admin/dashboard')}
+            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const formData = application.form_data || {};
+  const candidateName = formData.fullName || application.profiles?.full_name || 'N/A';
+  const candidateEmail = formData.email || application.profiles?.email || 'N/A';
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8">
@@ -86,18 +182,25 @@ export default function ApplicationDetailPage() {
             </button>
 
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
-                <User />
+              <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-2xl">
+                {candidateName.charAt(0).toUpperCase()}
               </div>
               <div>
-                <div className="text-2xl font-bold">{application.name}</div>
-                <div className="text-gray-600">{application.postAppliedFor}</div>
+                <div className="text-2xl font-bold">{candidateName}</div>
+                <div className="text-gray-600">{formData.postAppliedFor || 'N/A'}</div>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="px-3 py-1 rounded-full bg-yellow-100 text-yellow-800 font-medium">{application.status.replace('_', ' ').toUpperCase()}</span>
+            <span className={`px-3 py-1 rounded-full font-medium ${
+              application.status === 'approved' || application.status === 'accepted' ? 'bg-green-100 text-green-800' :
+              application.status === 'rejected' ? 'bg-red-100 text-red-800' :
+              application.status === 'under_review' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-blue-100 text-blue-800'
+            }`}>
+              {application.status.replace('_', ' ').toUpperCase()}
+            </span>
             <button onClick={handleApprove} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2"><CheckCircle /> Approve</button>
             <button onClick={handleReject} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 flex items-center gap-2"><XCircle /> Reject</button>
             <button className="border px-3 py-2 rounded hover:bg-gray-50 flex items-center gap-2"><Printer /> Print</button>
@@ -125,19 +228,26 @@ export default function ApplicationDetailPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-600">Post Applied For</label>
-                <p className="text-gray-900">{application.postAppliedFor}</p>
+                <p className="text-gray-900">{formData.postAppliedFor || 'N/A'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Name</label>
-                <p className="text-gray-900">{application.name}</p>
+                <p className="text-gray-900">{candidateName}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Father / Husband</label>
-                <p className="text-gray-900">{application.fatherOrHusbandName}</p>
+                <p className="text-gray-900">{formData.fatherOrHusbandName || 'N/A'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Submitted At</label>
-                <p className="text-gray-900">{application.submittedAt}</p>
+                <p className="text-gray-900">
+                  {application.submitted_at 
+                    ? new Date(application.submitted_at).toLocaleString('en-US', { 
+                        year: 'numeric', month: 'short', day: 'numeric', 
+                        hour: '2-digit', minute: '2-digit' 
+                      })
+                    : 'Not submitted'}
+                </p>
               </div>
             </div>
           </div>
@@ -147,106 +257,112 @@ export default function ApplicationDetailPage() {
             <div className="space-y-3">
               <div>
                 <label className="text-sm font-medium text-gray-600">Permanent Address</label>
-                <p className="text-gray-900">{application.permanentAddress}</p>
+                <p className="text-gray-900">{formData.permanentAddress || 'N/A'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Communication Address</label>
-                <p className="text-gray-900">{application.communicationAddress}</p>
+                <p className="text-gray-900">{formData.communicationAddress || 'N/A'}</p>
               </div>
             </div>
           </div>
 
           <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h4 className="text-lg font-semibold mb-4">Personal Details</h4>
+            <h4 className="text-lg font-semibold mb-4">Personal Information</h4>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-600">Date of Birth</label>
-                <p className="text-gray-900">{application.dateOfBirth}</p>
+                <p className="text-gray-900">{formData.dateOfBirth || 'N/A'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Sex</label>
-                <p className="text-gray-900">{application.sex}</p>
+                <p className="text-gray-900">{formData.sex || 'N/A'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Nationality</label>
-                <p className="text-gray-900">{application.nationality}</p>
+                <p className="text-gray-900">{formData.nationality || 'N/A'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Marital Status</label>
-                <p className="text-gray-900">{application.maritalStatus}</p>
+                <p className="text-gray-900">{formData.maritalStatus || 'N/A'}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600">Mobile</label>
-                <p className="text-gray-900">{application.mobileNo}</p>
+                <label className="text-sm font-medium text-gray-600">Religion</label>
+                <p className="text-gray-900">{formData.religion || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">Mobile No</label>
+                <p className="text-gray-900">{formData.mobileNo || 'N/A'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Email</label>
-                <p className="text-gray-900">{application.email}</p>
+                <p className="text-gray-900">{candidateEmail}</p>
               </div>
             </div>
           </div>
 
           <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h4 className="text-lg font-semibold mb-4">Banking Information</h4>
+            <h4 className="text-lg font-semibold mb-4">Banking Details</h4>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-600">Bank Name</label>
-                <p className="text-gray-900">{application.bankName}</p>
+                <p className="text-gray-900">{formData.bankName || 'N/A'}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600">Account No.</label>
-                <p className="text-gray-900">{application.accountNo}</p>
+                <label className="text-sm font-medium text-gray-600">Account No</label>
+                <p className="text-gray-900">{formData.accountNo || 'N/A'}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600">IFSC</label>
-                <p className="text-gray-900">{application.ifsc}</p>
+                <label className="text-sm font-medium text-gray-600">IFSC Code</label>
+                <p className="text-gray-900">{formData.ifscCode || 'N/A'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Branch</label>
-                <p className="text-gray-900">{application.branch}</p>
+                <p className="text-gray-900">{formData.branch || 'N/A'}</p>
               </div>
             </div>
           </div>
 
           <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h4 className="text-lg font-semibold mb-4">Identity Documents</h4>
+            <h4 className="text-lg font-semibold mb-4">Identity Details</h4>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-gray-600">PAN No.</label>
-                <p className="text-gray-900">{application.panNo}</p>
+                <label className="text-sm font-medium text-gray-600">PAN No</label>
+                <p className="text-gray-900">{formData.panNo || 'N/A'}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600">Aadhar No.</label>
-                <p className="text-gray-900">{application.aadharNo}</p>
+                <label className="text-sm font-medium text-gray-600">Aadhar No</label>
+                <p className="text-gray-900">{formData.aadharNo || 'N/A'}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <div className="bg-white rounded-lg shadow p-6">
             <h4 className="text-lg font-semibold mb-4">Educational Qualifications</h4>
-            <table className="w-full border-collapse border border-gray-300">
+            <table className="w-full">
               <thead>
-                <tr className="bg-gray-100">
-                  <th className="border px-4 py-2 text-left text-sm font-semibold">Qualification</th>
-                  <th className="border px-4 py-2 text-left text-sm font-semibold">Year</th>
-                  <th className="border px-4 py-2 text-left text-sm font-semibold">% Marks</th>
+                <tr className="border-b">
+                  <th className="text-left py-2">Level</th>
+                  <th className="text-left py-2">Year</th>
+                  <th className="text-left py-2">Percentage</th>
                 </tr>
               </thead>
               <tbody>
-                {application.education.map((edu, idx) => (
-                  <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="border px-4 py-2">{edu.level}</td>
-                    <td className="border px-4 py-2">{edu.yearOfPassing}</td>
-                    <td className="border px-4 py-2">{edu.percentage}</td>
+                {(formData.education || []).map((edu, idx) => (
+                  <tr key={idx} className="border-b">
+                    <td className="py-2">{edu.level}</td>
+                    <td className="py-2">{edu.yearOfPassing || 'N/A'}</td>
+                    <td className="py-2">{edu.percentage || 'N/A'}%</td>
                   </tr>
                 ))}
+                {(!formData.education || formData.education.length === 0) && (
+                  <tr>
+                    <td colSpan={3} className="py-4 text-center text-gray-500">
+                      No education details provided
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h4 className="text-lg font-semibold mb-4">Declaration</h4>
-            <p className="text-sm text-gray-700 leading-relaxed">I hereby declare that all statements made in the application are true, complete and correct to the best of my knowledge and belief. I understand that in the event of any information being found untrue/false/incorrect or I do not satisfy the eligibility criteria, my candidature/appointment will be cancelled/terminated, without assigning any reasons thereof.</p>
           </div>
         </div>
 
@@ -257,15 +373,21 @@ export default function ApplicationDetailPage() {
             <div className="space-y-3">
               <div>
                 <label className="text-sm font-medium text-gray-600">Application ID</label>
-                <p className="text-gray-900">{application.id}</p>
+                <p className="text-gray-900 font-mono text-sm">{application.id.substring(0, 8)}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Submitted</label>
-                <p className="text-gray-900">{application.submittedAt}</p>
+                <p className="text-gray-900">
+                  {application.submitted_at 
+                    ? new Date(application.submitted_at).toLocaleDateString('en-US', { 
+                        year: 'numeric', month: 'short', day: 'numeric'
+                      })
+                    : 'Not submitted'}
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Post</label>
-                <p className="text-gray-900">{application.postAppliedFor}</p>
+                <p className="text-gray-900">{formData.postAppliedFor || 'N/A'}</p>
               </div>
             </div>
           </div>
@@ -296,14 +418,12 @@ export default function ApplicationDetailPage() {
           <div className="bg-white rounded-lg p-6 max-w-md w-full text-center">
             <CheckCircle className="mx-auto mb-4 text-green-500" size={64} />
             <h3 className="text-2xl font-bold mb-2">Approve Application</h3>
-            <p className="text-gray-600 mb-4">You are about to approve this application. The candidate will be notified and can proceed to upload documents.</p>
+            <p className="text-gray-600 mb-4">You are about to approve this application. The candidate will be notified.</p>
             <div className="text-left mb-4">
               <p className="font-medium">Candidate:</p>
-              <p className="text-gray-900">{application.name} — {application.postAppliedFor}</p>
-              <p className="text-sm text-gray-500 mt-2">Application ID: {application.id}</p>
+              <p className="text-gray-900">{candidateName} — {formData.postAppliedFor || 'N/A'}</p>
+              <p className="text-sm text-gray-500 mt-2">Application ID: {application.id.substring(0, 8)}</p>
             </div>
-
-            <textarea placeholder="Optional message to candidate" className="w-full input-field mb-4 p-3" />
 
             <div className="flex gap-3">
               <button onClick={() => setShowApprovalModal(false)} className="flex-1 border py-2 rounded">Cancel</button>
@@ -321,18 +441,24 @@ export default function ApplicationDetailPage() {
             <h3 className="text-2xl font-bold mb-2">Reject Application</h3>
             <p className="text-gray-600 mb-4">Please provide a reason for rejection.</p>
 
-            <select className="input-field w-full mb-3">
-              <option>Incomplete Information</option>
-              <option>Does Not Meet Requirements</option>
-              <option>Duplicate Application</option>
-              <option>Invalid Documents</option>
-              <option>Other</option>
-            </select>
-            <textarea placeholder="Additional comments (required)" className="w-full input-field mb-4 p-3" />
+            <textarea 
+              placeholder="Reason for rejection (required)" 
+              className="w-full input-field mb-4 p-3"
+              rows={4}
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+            />
 
             <div className="flex gap-3">
-              <button onClick={() => setShowRejectionModal(false)} className="flex-1 border py-2 rounded">Cancel</button>
-              <button onClick={() => confirmReject('Reason selected')} className="flex-1 bg-red-600 text-white py-2 rounded">Confirm Rejection</button>
+              <button onClick={() => {
+                setShowRejectionModal(false);
+                setRejectionReason('');
+              }} className="flex-1 border py-2 rounded">
+                Cancel
+              </button>
+              <button onClick={confirmReject} className="flex-1 bg-red-600 text-white py-2 rounded">
+                Confirm Rejection
+              </button>
             </div>
           </div>
         </div>

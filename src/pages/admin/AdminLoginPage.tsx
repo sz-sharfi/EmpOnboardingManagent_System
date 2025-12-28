@@ -20,20 +20,29 @@ export default function AdminLoginPage() {
           return;
         }
         
-        // Ensure profile exists for admin
-        if (data.user) {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .upsert({
-              user_id: data.user.id,
-              email: data.user.email || email,
-              role: 'admin',
-              full_name: data.user.user_metadata?.full_name || ''
-            }, { onConflict: 'user_id' });
-          
-          if (profileError) {
-            console.error('Profile creation error:', profileError);
-          }
+        if (!data.user) {
+          alert('Login failed');
+          return;
+        }
+        
+        // Check user role
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('user_id', data.user.id)
+          .single();
+        
+        if (profileError) {
+          console.error('Profile fetch error:', profileError);
+          alert('Failed to fetch user profile');
+          return;
+        }
+        
+        // Check if user is an admin
+        if (profile.role !== 'admin') {
+          alert('Access denied. This portal is for administrators only.');
+          await supabase.auth.signOut();
+          return;
         }
         
         navigate('/admin/dashboard');

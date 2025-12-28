@@ -12,6 +12,9 @@ import ApplicationPreviewPage from './pages/candidate/ApplicationPreviewPage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import ApplicationDetailPage from './pages/admin/ApplicationDetailPage';
+import ApplicationListPage from './pages/admin/ApplicationListPage';
+import DocumentReviewPage from './pages/admin/DocumentReviewPage';
+import ReportsPage from './pages/admin/ReportsPage';
 
 // NotFound Page Component
 function NotFoundPage() {
@@ -90,13 +93,17 @@ export default function App() {
         <Route path="/candidate/login" element={<LoginPage />} />
         <Route path="/candidate/dashboard" element={<DashboardPage />} />
         <Route path="/candidate/apply" element={<ApplicationFormPage />} />
+        <Route path="/candidate/application/preview" element={<ApplicationPreviewPage />} />
         <Route path="/candidate/documents" element={<DocumentUploadPage />} />
-        <Route path="/candidate/preview" element={<ApplicationPreviewPage />} />
 
         {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLoginPage />} />
         <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+        <Route path="/admin/applications" element={<ApplicationListPage />} />
         <Route path="/admin/applications/:id" element={<ApplicationDetailPage />} />
+        <Route path="/admin/documents" element={<DocumentReviewPage />} />
+        <Route path="/admin/documents/:appId" element={<DocumentReviewPage />} />
+        <Route path="/admin/reports" element={<ReportsPage />} />
 
         {/* Catch-all Route */}
         <Route path="*" element={<NotFoundPage />} />
