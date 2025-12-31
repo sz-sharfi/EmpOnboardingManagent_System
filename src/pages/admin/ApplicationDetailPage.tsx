@@ -617,19 +617,8 @@ export default function ApplicationDetailPage() {
                             Download
                           </a>
                         </div>
-                        <div className="flex gap-2">
-                          <button
-                            className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-medium"
-                          >
-                            <CheckCircle size={16} />
-                            Verify
-                          </button>
-                          <button
-                            className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm font-medium"
-                          >
-                            <XCircle size={16} />
-                            Reject
-                          </button>
+                        <div className="text-xs text-gray-500 text-center mt-1">
+                          Profile photos are verified as part of application review
                         </div>
                       </div>
                     </div>
