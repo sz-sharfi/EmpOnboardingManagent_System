@@ -3,6 +3,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Home, FileText, BarChart, Settings, Bell, Download, Eye, ZoomIn, ZoomOut, RotateCw, CheckCircle, XCircle, X } from 'lucide-react';
 import supabase from '../../utils/supabaseClient';
 
+// Storage bucket constant - MUST match Supabase storage bucket name
+const DOCUMENTS_BUCKET = 'candidate-documents' as const;
+
 interface Document {
   id: string;
   app_id: string;
@@ -57,10 +60,10 @@ export default function DocumentReviewPage() {
     
     try {
       const { data, error } = await supabase
-        .from('applications')
+        .from('candidate_applications')
         .select(`
           *,
-          profiles!applications_user_id_fkey (
+          profiles (
             email,
             full_name
           )
@@ -118,7 +121,7 @@ export default function DocumentReviewPage() {
   const handleViewDocument = async (doc: Document) => {
     try {
       const { data } = await supabase.storage
-        .from('documents')
+        .from(DOCUMENTS_BUCKET)
         .createSignedUrl(doc.storage_path, 3600);
 
       if (data?.signedUrl) {
@@ -137,7 +140,7 @@ export default function DocumentReviewPage() {
   const handleDownload = async (doc: Document) => {
     try {
       const { data } = await supabase.storage
-        .from('documents')
+        .from(DOCUMENTS_BUCKET)
         .createSignedUrl(doc.storage_path, 60);
 
       if (data?.signedUrl) {

@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, LogOut, CheckCircle, User, Eye, FileText, Upload, Clock } from 'lucide-react';
-import supabase from '../../utils/supabaseClient';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
+import { getUserApplication } from '../../lib/applications';
+import { signOut } from '../../lib/auth';
 
 interface Application {
   id: string;
@@ -48,11 +51,11 @@ const statusConfig = {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const { user, profile } = useAuth();
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [application, setApplication] = useState<Application | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -63,33 +66,13 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       
-      // Get user
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         navigate('/candidate/login');
         return;
       }
 
-      // Get profile
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-      
-      if (profileData) {
-        setProfile(profileData);
-      }
-
-      // Get latest application
-      const { data: appData } = await supabase
-        .from('applications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
+      // Get latest application using library function
+      const appData = await getUserApplication(user.id);
       if (appData) {
         setApplication(appData);
 
@@ -99,7 +82,7 @@ export default function DashboardPage() {
             .rpc('get_application_timeline', { p_app_id: appData.id });
           
           if (activityData) {
-            setActivities(activityData.slice(0, 10)); // Limit to 10 most recent
+            setActivities(activityData);
           }
         }
       }
@@ -115,7 +98,6 @@ export default function DashboardPage() {
       if (notifData) {
         setNotifications(notifData);
       }
-
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -186,8 +168,12 @@ export default function DashboardPage() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/candidate/login');
+    try {
+      await signOut();
+      navigate('/candidate/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   if (loading) {
@@ -302,31 +288,33 @@ export default function DashboardPage() {
             <h3 className="text-lg font-semibold text-gray-800 mb-6">Application Progress</h3>
             
             {application && application.status !== 'draft' ? (
-              <div className="space-y-6 relative">
-                {/* Timeline Line */}
-                <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200" />
+              <>
+                <div className="space-y-6 relative">
+                  {/* Timeline Line - only spans the timeline steps */}
+                  <div className="absolute left-6 top-6 bottom-6 w-0.5 bg-gray-200" />
 
-                {/* Timeline Steps */}
-                {getTimelineSteps().map((item, idx) => (
-                  <div key={idx} className="flex gap-4 relative">
-                    <div
-                      className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 relative z-10 ${
-                        item.completed
-                          ? 'bg-green-500 text-white'
-                          : item.current
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-300 text-gray-600'
-                      }`}
-                    >
-                      {item.completed ? <CheckCircle size={24} /> : item.current ? <Clock size={24} /> : item.step}
+                  {/* Timeline Steps */}
+                  {getTimelineSteps().map((item, idx) => (
+                    <div key={idx} className="flex gap-4 relative">
+                      <div
+                        className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 relative z-10 ${
+                          item.completed
+                            ? 'bg-green-500 text-white'
+                            : item.current
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-300 text-gray-600'
+                        }`}
+                      >
+                        {item.completed ? <CheckCircle size={24} /> : item.current ? <Clock size={24} /> : item.step}
+                      </div>
+                      <div className="pt-2">
+                        <p className="font-medium text-gray-800">{item.label}</p>
+                        {item.current && <p className="text-sm text-gray-500">In Progress</p>}
+                        {item.completed && <p className="text-sm text-green-600">Completed</p>}
+                      </div>
                     </div>
-                    <div className="pt-2">
-                      <p className="font-medium text-gray-800">{item.label}</p>
-                      {item.current && <p className="text-sm text-gray-500">In Progress</p>}
-                      {item.completed && <p className="text-sm text-green-600">Completed</p>}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
 
                 {/* Activity Log Section */}
                 {activities.length > 0 && (
@@ -345,7 +333,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 )}
-              </div>
+              </>
             ) : (
               <div className="text-center py-8">
                 <p className="text-gray-500 mb-4">No application submitted yet</p>
@@ -364,13 +352,22 @@ export default function DashboardPage() {
             {/* Fill Application Form */}
             <button
               onClick={() => navigate('/candidate/apply')}
-              className="w-full p-6 border-2 border-blue-500 rounded-lg bg-white hover:shadow-lg transition cursor-pointer text-left"
+              disabled={application && application.status !== 'draft'}
+              className={`w-full p-6 border-2 rounded-lg bg-white text-left transition ${
+                application && application.status !== 'draft'
+                  ? 'border-gray-300 opacity-50 cursor-not-allowed'
+                  : 'border-blue-500 hover:shadow-lg cursor-pointer'
+              }`}
             >
               <div className="flex items-start gap-3">
-                <FileText className="text-blue-600 flex-shrink-0 mt-1" size={24} />
+                <FileText className={`flex-shrink-0 mt-1 ${application && application.status !== 'draft' ? 'text-gray-400' : 'text-blue-600'}`} size={24} />
                 <div>
                   <h4 className="font-semibold text-gray-800">Fill Application Form</h4>
-                  <p className="text-sm text-gray-600">Complete your application details</p>
+                  <p className="text-sm text-gray-600">
+                    {application && application.status !== 'draft'
+                      ? 'Application already submitted'
+                      : 'Complete your application details'}
+                  </p>
                 </div>
               </div>
             </button>
@@ -386,7 +383,7 @@ export default function DashboardPage() {
               }`}
             >
               <div className="flex items-start gap-3">
-                <Upload className={`flex-shrink-0 mt-1 ${application && application.status !== 'draft' ? 'text-blue-600' : 'text-gray-400'}`} size={24} />
+                <FileText className={`flex-shrink-0 mt-1 ${application && application.status !== 'draft' ? 'text-blue-600' : 'text-gray-400'}`} size={24} />
                 <div>
                   <h4 className="font-semibold text-gray-800">View Documents</h4>
                   <p className="text-sm text-gray-600">

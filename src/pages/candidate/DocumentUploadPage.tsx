@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Download, ArrowLeft, CheckCircle, Clock, XCircle } from 'lucide-react';
 import supabase from '../../utils/supabaseClient';
+import { getUserApplication } from '../../lib/applications';
 
 interface DocumentData {
   id: string;
@@ -35,24 +36,17 @@ export default function DocumentUploadPage() {
       }
 
       // Get user's application
-      const { data: appData, error: appError } = await supabase
-        .from('applications')
-        .select('id')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (appError || !appData) {
-        console.error('Error fetching application:', appError);
+      const appData = await getUserApplication(user.id);
+      if (!appData) {
+        console.error('No application found for user');
         return;
       }
 
-      // Fetch documents for this application
+      // Fetch documents for this application - try both column names for compatibility
       const { data: docsData, error: docsError } = await supabase
         .from('documents')
         .select('*')
-        .eq('app_id', appData.id)
+        .or(`application_id.eq.${appData.id},app_id.eq.${appData.id}`)
         .order('created_at', { ascending: false });
 
       if (docsError) {
@@ -92,7 +86,7 @@ export default function DocumentUploadPage() {
   const handleDownloadDocument = async (doc: DocumentData) => {
     try {
       const { data, error } = await supabase.storage
-        .from('documents')
+        .from('candidate-documents')
         .createSignedUrl(doc.storage_path, 3600);
 
       if (error) {
@@ -190,7 +184,7 @@ export default function DocumentUploadPage() {
                 {documents.map((doc) => (
                   <div
                     key={doc.id}
-                    className="bg-white rounded-lg shadow-md p-6 border-2 transition hover:shadow-lg"
+                    className="bg-white rounded-lg shadow-md p-6 border-2 transition hover:shadow-lg flex flex-col"
                   >
                     {/* Document Header */}
                     <div className="flex items-start justify-between mb-4">
@@ -240,6 +234,9 @@ export default function DocumentUploadPage() {
                         <p className="text-sm text-red-700">{doc.rejection_reason}</p>
                       </div>
                     )}
+
+                    {/* Spacer to push button to bottom */}
+                    <div className="flex-grow"></div>
 
                     {/* Actions */}
                     <button

@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Printer, Download, ArrowLeft, Mail, Phone, MapPin, User as UserIcon } from 'lucide-react';
+import { Download, ArrowLeft, Mail, Phone, MapPin, User as UserIcon } from 'lucide-react';
 import supabase from '../../utils/supabaseClient';
+
+// Storage bucket constant - MUST match Supabase storage bucket name
+const DOCUMENTS_BUCKET = 'candidate-documents' as const;
 
 interface FormData {
   postAppliedFor: string;
@@ -47,7 +50,7 @@ export default function ApplicationPreviewPage() {
       }
 
       const { data, error } = await supabase
-        .from('applications')
+        .from('candidate_applications')
         .select('form_data, id')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
@@ -62,40 +65,47 @@ export default function ApplicationPreviewPage() {
       const appData = data.form_data as FormData;
       setFormData(appData);
 
-      // Try to fetch photo from documents table
-      if (data.id) {
-        try {
-          // First try to find a document with type 'Photo'
-          const { data: photoDoc } = await supabase
-            .from('documents')
-            .select('storage_path')
-            .eq('app_id', data.id)
-            .eq('document_type', 'Photo')
-            .single();
+      // Fetch user's profile photo from profiles table
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', user.id)
+          .single();
 
-          if (photoDoc?.storage_path) {
-            const { data: urlData, error: urlError } = await supabase.storage
-              .from('documents')
-              .createSignedUrl(photoDoc.storage_path, 3600);
-
-            if (urlError) {
-              console.error('Error creating signed URL:', urlError);
-            } else if (urlData?.signedUrl) {
-              setPhotoUrl(urlData.signedUrl);
-            }
-          }
-        } catch (photoError) {
-          console.log('Photo not found in documents');
-          // Silently fail and show placeholder
+        if (profile?.avatar_url) {
+          setPhotoUrl(profile.avatar_url);
         }
+      } catch (photoError) {
+        console.log('Profile photo not found');
+        // Silently fail and show placeholder
       }
     } catch (error) {
       console.error('Error fetching application:', error);
     }
   };
 
-  const handlePrint = () => window.print();
-  const handleDownloadPDF = () => alert('PDF download feature coming soon');
+  const handleDownloadPDF = () => {
+    // Get the application data to use in filename
+    const candidateName = formData?.fullName || 'Application';
+    const sanitizedName = candidateName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `${sanitizedName}_application_${timestamp}.pdf`;
+
+    // Store the original title
+    const originalTitle = document.title;
+    
+    // Set a custom title for the PDF
+    document.title = filename.replace('.pdf', '');
+
+    // Trigger print dialog which allows saving as PDF
+    window.print();
+
+    // Restore original title after a short delay
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1000);
+  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -110,22 +120,13 @@ export default function ApplicationPreviewPage() {
             Back
           </button>
           <h1 className="text-2xl font-bold text-gray-900">Application Preview</h1>
-          <div className="flex gap-3">
-            <button
-              onClick={handlePrint}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium text-gray-700"
-            >
-              <Printer size={20} />
-              Print
-            </button>
-            <button
-              onClick={handleDownloadPDF}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium text-gray-700"
-            >
-              <Download size={20} />
-              PDF
-            </button>
-          </div>
+          <button
+            onClick={handleDownloadPDF}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+          >
+            <Download size={20} />
+            Download PDF
+          </button>
         </div>
       </header>
 

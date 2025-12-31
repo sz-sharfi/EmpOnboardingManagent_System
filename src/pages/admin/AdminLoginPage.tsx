@@ -29,7 +29,7 @@ export default function AdminLoginPage() {
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role')
-          .eq('user_id', data.user.id)
+          .eq('id', data.user.id)
           .single();
         
         if (profileError) {

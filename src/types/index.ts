@@ -24,29 +24,38 @@ export interface DocumentUpload {
 
 export interface CandidateApplication {
   id: string;
-  postAppliedFor: string;
+  user_id: string;
+  post_applied_for: string;
   name: string;
-  fatherOrHusbandName: string;
-  photo: string | null;
-  permanentAddress: string;
-  communicationAddress: string;
-  dateOfBirth: string;
+  father_or_husband_name: string;
+  photo_url: string | null;
+  permanent_address: string;
+  communication_address: string;
+  date_of_birth: string;
   sex: 'Male' | 'Female' | 'Other';
   nationality: string;
-  maritalStatus: 'Single' | 'Married' | 'Divorced' | 'Widowed';
+  marital_status: 'Single' | 'Married' | 'Divorced' | 'Widowed';
   religion: string;
-  mobileNo: string;
+  mobile_no: string;
   email: string;
-  bankName: string;
-  accountNo: string;
-  ifsc: string;
+  bank_name: string;
+  account_no: string;
+  ifsc_code: string;
   branch: string;
-  panNo: string;
-  aadharNo: string;
-  education: EducationDetail[];
+  pan_no: string;
+  aadhar_no: string;
+  education: EducationDetail[] | any; // JSONB from database
+  declaration_place?: string | null;
+  declaration_date?: string | null;
+  declaration_accepted?: boolean;
   status: ApplicationStatus;
-  submittedAt: string;
-  documents: DocumentUpload[];
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  rejection_reason?: string | null;
+  admin_notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  submitted_at?: string | null;
 }
 
 export interface FormErrors {

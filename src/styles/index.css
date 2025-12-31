@@ -51,3 +51,21 @@
     @apply bg-purple-100 text-purple-800;
   }
 }
+
+/* Print styles - hide action buttons when printing */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  /* Ensure proper page breaks */
+  .print-page-break {
+    page-break-before: always;
+  }
+  
+  /* Remove shadows and backgrounds for cleaner print */
+  .shadow, .shadow-sm, .shadow-md, .shadow-lg {
+    box-shadow: none !important;
+  }
+}
+

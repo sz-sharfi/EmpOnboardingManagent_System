@@ -1,0 +1,1044 @@
+================================================================================
+GITHUB COPILOT PROMPTS - SUPABASE BACKEND SETUP
+Employee Onboarding System - Complete Backend Integration
+================================================================================
+
+OVERVIEW:
+These prompts will help you setup Supabase for:
+1. User authentication (candidate + admin)
+2. Database schema with proper relationships
+3. Document storage with user-specific folders
+4. Row Level Security (RLS) policies
+5. React integration with hooks and context
+
+PREREQUISITES:
+- Supabase project already created by teammates
+- Supabase URL and Anon Key available
+- React project with Vite + TypeScript setup complete
+
+================================================================================
+PHASE 1: INSTALL DEPENDENCIES & SETUP✅
+================================================================================
+
+PROMPT 1: Install Supabase Client
+---START PROMPT---
+
+Install Supabase client library and setup environment variables:
+
+1. Run in terminal:
+npm install @supabase/supabase-js
+
+2. Create .env file in project root with:
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+3. Add .env to .gitignore if not already there
+
+4. Create src/lib/supabase.ts with Supabase client initialization:
+- Import createClient from @supabase/supabase-js
+- Get environment variables
+- Export configured supabase client
+- Add TypeScript types for Database schema
+
+Make sure to handle missing environment variables with error throwing.
+
+---END PROMPT---
+
+
+PROMPT 2: Create Supabase Client File
+---START PROMPT---
+
+Create src/lib/supabase.ts as the main Supabase client file:
+
+import { createClient } from '@supabase/supabase-js'
+
+Requirements:
+1. Get VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY from environment
+2. Throw error if either is missing
+3. Create and export supabase client using createClient()
+4. Add TypeScript Database type definition with tables:
+   - profiles (id, email, full_name, role, avatar_url, created_at, updated_at)
+   - candidate_applications (all fields from BRD)
+   - documents (id, application_id, user_id, document_type, file_name, file_path, etc.)
+
+Export both supabase client and Database type.
+
+---END PROMPT---
+
+
+================================================================================
+PHASE 2: DATABASE SETUP (SUPABASE SQL EDITOR) ✅
+================================================================================
+
+PROMPT 3: Review Current Database Structure
+---START PROMPT---
+
+I need to review and fix the current Supabase database structure that my teammates created.
+
+Current issues to identify:
+1. Check if tables exist: profiles, candidate_applications, documents
+2. Check if proper foreign key relationships exist
+3. Check if Row Level Security (RLS) is enabled
+4. Check if indexes are created for performance
+5. Check if triggers are setup for auto-creating profiles
+6. Check if storage buckets exist and are configured correctly
+
+Please provide SQL queries to:
+1. List all existing tables
+2. Show table structures
+3. Check RLS status
+4. List existing policies
+5. Show storage buckets
+
+---END PROMPT---
+
+
+PROMPT 4: Create Complete Database Schema
+---START PROMPT---
+
+Create complete SQL migration script for employee onboarding system.
+
+Run this in Supabase SQL Editor to setup entire database:
+
+REQUIREMENTS:
+
+1. CREATE TABLES:
+
+Table: profiles
+- id (UUID, references auth.users, PRIMARY KEY)
+- email (TEXT, UNIQUE, NOT NULL)
+- full_name (TEXT)
+- role (TEXT, CHECK: 'candidate' or 'admin')
+- avatar_url (TEXT)
+- created_at, updated_at (TIMESTAMP WITH TIME ZONE)
+
+Table: candidate_applications
+- id (UUID, PRIMARY KEY, auto-generated)
+- user_id (UUID, references auth.users, NOT NULL)
+- All form fields from JRM Infosystems application form:
+  * post_applied_for, name, father_or_husband_name, photo_url
+  * permanent_address, communication_address
+  * date_of_birth (DATE), sex, nationality, marital_status, religion
+  * mobile_no, email
+  * bank_name, account_no, ifsc_code, branch
+  * pan_no, aadhar_no
+  * education (JSONB array)
+  * declaration_place, declaration_date, declaration_accepted
+- status (TEXT, CHECK: draft, submitted, under_review, approved, rejected, documents_pending, completed)
+- reviewed_by, reviewed_at, rejection_reason, admin_notes
+- created_at, updated_at, submitted_at
+
+Table: documents
+- id (UUID, PRIMARY KEY)
+- application_id (UUID, references candidate_applications)
+- user_id (UUID, references auth.users)
+- document_type (TEXT, CHECK: pan_card, aadhar_card, passport, tenth_certificate, twelfth_certificate, bachelors_degree, masters_degree, police_clearance)
+- file_name, file_path, file_size, file_type
+- status (TEXT, CHECK: uploaded, verified, rejected)
+- verified_by, verified_at, rejection_reason
+- is_required (BOOLEAN)
+- uploaded_at
+
+Table: admin_actions_log
+- id (UUID, PRIMARY KEY)
+- admin_id (UUID, references auth.users)
+- application_id (UUID, references candidate_applications)
+- action (TEXT)
+- details (JSONB)
+- created_at
+
+2. CREATE INDEXES for performance on foreign keys and frequently queried columns
+
+3. CREATE FUNCTIONS:
+- handle_new_user() - auto-create profile on signup
+- update_updated_at_column() - auto-update timestamps
+
+4. CREATE TRIGGERS:
+- on_auth_user_created - call handle_new_user
+- update_profiles_updated_at
+- update_applications_updated_at
+
+5. ENABLE ROW LEVEL SECURITY on all tables
+
+6. CREATE RLS POLICIES:
+- Users can view/update own profile
+- Admins can view all profiles
+- Candidates can create/view/update own applications (only if draft/submitted)
+- Admins can view/update all applications
+- Candidates can upload/view/delete own documents
+- Admins can view/update all documents
+
+Generate the complete SQL script that I can copy and run in Supabase SQL Editor.
+
+---END PROMPT---
+
+
+================================================================================
+PHASE 3: STORAGE BUCKETS SETUP✅
+================================================================================
+
+PROMPT 5: Setup Storage Buckets
+---START PROMPT---
+
+I need to setup Supabase Storage buckets for document storage.
+
+REQUIREMENTS:
+
+Create instructions for:
+
+1. Create bucket: candidate-documents
+   - Type: Private
+   - File size limit: 5MB
+   - Allowed MIME types: application/pdf, image/jpeg, image/png
+   - Folder structure: {user_id}/{application_id}/{document_type}/{filename}
+   
+2. Create bucket: profile-photos
+   - Type: Private
+   - File size limit: 2MB
+   - Allowed MIME types: image/jpeg, image/png
+   - Folder structure: {user_id}/{filename}
+
+3. Storage policies for candidate-documents:
+   - Candidates can upload to their own user_id folder
+   - Candidates can view their own documents
+   - Candidates can delete their own documents
+   - Admins can view all documents
+
+4. Storage policies for profile-photos:
+   - Users can upload/view/update their own photo
+   - Admins can view all photos
+
+Provide:
+- Manual steps to create buckets in Supabase Dashboard
+- SQL commands to create storage policies
+
+---END PROMPT---
+
+
+================================================================================
+PHASE 4: AUTHENTICATION SETUP ✅
+================================================================================
+
+PROMPT 6: Create Authentication Functions
+---START PROMPT---
+
+Create src/lib/auth.ts with all authentication-related functions:
+
+REQUIREMENTS:
+
+1. Import supabase client from './supabase'
+
+2. TypeScript interfaces:
+   - SignUpData (email, password, fullName, role)
+   - SignInData (email, password)
+
+3. Functions to implement:
+
+   signUp(data: SignUpData)
+   - Use supabase.auth.signUp()
+   - Pass fullName and role in options.data (user metadata)
+   - Return user data or throw error
+
+   signIn(data: SignInData)
+   - Use supabase.auth.signInWithPassword()
+   - Return session data or throw error
+
+   signOut()
+   - Use supabase.auth.signOut()
+   - Handle errors
+
+   getSession()
+   - Use supabase.auth.getSession()
+   - Return current session
+
+   getCurrentUserProfile()
+   - Get current user from supabase.auth.getUser()
+   - Query profiles table for full profile data
+   - Return profile with role information
+
+   onAuthStateChange(callback)
+   - Setup listener with supabase.auth.onAuthStateChange()
+   - Return subscription for cleanup
+
+All functions should use async/await and proper error handling.
+
+---END PROMPT---
+
+
+PROMPT 7: Create Auth Context Provider
+---START PROMPT---
+
+Create src/contexts/AuthContext.tsx for managing authentication state across the app:
+
+REQUIREMENTS:
+
+1. Import React hooks, Supabase types, and auth functions
+2. Create AuthContext with:
+   - user (User | null)
+   - profile (Profile | null) - includes id, email, full_name, role, avatar_url
+   - session (Session | null)
+   - loading (boolean)
+   - signOut function
+
+3. Create AuthProvider component:
+   - Initialize states for user, profile, session, loading
+   - useEffect to:
+     * Get initial session on mount
+     * Load user profile if session exists
+     * Setup auth state change listener
+     * Cleanup subscription on unmount
+   - loadProfile function to fetch profile from database
+   - Export provider with children
+
+4. Export useAuth hook for easy consumption
+
+The context should automatically sync authentication state and user profile across the entire app.
+
+---END PROMPT---
+
+
+PROMPT 8: Create Protected Route Component
+---START PROMPT---
+
+Create src/components/ProtectedRoute.tsx for route protection:
+
+REQUIREMENTS:
+
+Props:
+- children (React.ReactNode)
+- requiredRole (optional: 'candidate' | 'admin')
+
+Logic:
+1. Use useAuth hook to get user, profile, loading
+2. If loading, show loading spinner centered on screen
+3. If no user, redirect to /candidate/login
+4. If requiredRole specified and profile.role doesn't match, redirect to /
+5. Otherwise, render children
+
+This component will wrap protected routes to ensure only authenticated users with correct roles can access them.
+
+---END PROMPT---
+
+
+================================================================================
+PHASE 5: APPLICATION DATA FUNCTIONS✅
+================================================================================
+
+PROMPT 9: Create Application CRUD Functions
+---START PROMPT---
+
+Create src/lib/applications.ts with functions to manage candidate applications:
+
+REQUIREMENTS:
+
+Import supabase client and CandidateApplication type from types/index.ts
+
+Functions to implement:
+
+1. createApplication(userId: string, data: Partial<CandidateApplication>)
+   - Insert new application with status 'draft'
+   - Return created application
+
+2. updateApplication(applicationId: string, data: Partial<CandidateApplication>)
+   - Update existing application
+   - Return updated application
+
+3. submitApplication(applicationId: string)
+   - Update status to 'submitted'
+   - Set submitted_at to current timestamp
+   - Return updated application
+
+4. getUserApplication(userId: string)
+   - Get most recent application for user
+   - Order by created_at descending
+   - Return single application or null
+
+5. getApplicationById(applicationId: string)
+   - Get specific application by ID
+   - Return application data
+
+6. getAllApplications()
+   - Admin function to get all applications
+   - Order by submitted_at descending
+   - Return array of applications
+
+7. approveApplication(applicationId: string, adminId: string)
+   - Update status to 'approved'
+   - Set reviewed_by and reviewed_at
+   - Log action in admin_actions_log table
+   - Return updated application
+
+8. rejectApplication(applicationId: string, adminId: string, reason: string)
+   - Update status to 'rejected'
+   - Set reviewed_by, reviewed_at, rejection_reason
+   - Log action in admin_actions_log
+   - Return updated application
+
+All functions should use async/await, proper error handling, and return typed data.
+
+---END PROMPT---
+
+
+================================================================================
+PHASE 6: DOCUMENT STORAGE FUNCTIONS✅
+================================================================================
+
+PROMPT 10: Create Document Management Functions
+---START PROMPT---
+
+Create src/lib/documents.ts with functions for document upload and management:
+
+REQUIREMENTS:
+
+Import supabase client
+
+TypeScript interface:
+- UploadDocumentParams (applicationId, userId, documentType, file)
+
+Functions to implement:
+
+1. uploadDocument(params: UploadDocumentParams)
+   - Upload file to storage bucket 'candidate-documents'
+   - File path: {userId}/{applicationId}/{documentType}/{timestamp}_{filename}
+   - After successful upload, create record in documents table
+   - Return document record
+
+2. getDocumentUrl(filePath: string)
+   - Get public URL for document
+   - Use supabase.storage.from().getPublicUrl()
+   - Return URL string
+
+3. getDocumentSignedUrl(filePath: string, expiresIn: number = 3600)
+   - Create signed URL for private document access
+   - Use supabase.storage.from().createSignedUrl()
+   - Return signed URL
+
+4. getApplicationDocuments(applicationId: string)
+   - Get all documents for an application
+   - Order by uploaded_at descending
+   - Return array of documents
+
+5. deleteDocument(documentId: string, filePath: string)
+   - Delete from storage bucket
+   - Delete record from documents table
+   - Handle both operations in try-catch
+
+6. verifyDocument(documentId: string, adminId: string)
+   - Admin function to verify document
+   - Update status to 'verified'
+   - Set verified_by and verified_at
+   - Return updated document
+
+7. rejectDocument(documentId: string, adminId: string, reason: string)
+   - Admin function to reject document
+   - Update status to 'rejected'
+   - Set verified_by, verified_at, rejection_reason
+   - Return updated document
+
+8. replaceDocument(documentId, oldFilePath, newFile, applicationId, userId, documentType)
+   - Delete old file from storage
+   - Upload new file
+   - Update document record with new file info
+   - Return updated document
+
+All functions should handle errors properly and use proper TypeScript types.
+
+---END PROMPT---
+
+
+================================================================================
+PHASE 7: INTEGRATE WITH REACT COMPONENTS ✅
+================================================================================
+
+PROMPT 11: Update App.tsx with Auth Provider
+---START PROMPT---
+
+Update src/App.tsx to integrate authentication:
+
+REQUIREMENTS:
+
+1. Import AuthProvider from './contexts/AuthContext'
+2. Import ProtectedRoute from './components/ProtectedRoute'
+
+3. Wrap the entire BrowserRouter with AuthProvider
+
+4. Update routes to use ProtectedRoute:
+   - /candidate/dashboard → ProtectedRoute with requiredRole="candidate"
+   - /candidate/apply → ProtectedRoute with requiredRole="candidate"
+   - /candidate/documents → ProtectedRoute with requiredRole="candidate"
+   - /candidate/preview → ProtectedRoute with requiredRole="candidate"
+   - /admin/dashboard → ProtectedRoute with requiredRole="admin"
+   - /admin/applications/:id → ProtectedRoute with requiredRole="admin"
+
+5. Keep login pages unprotected
+
+6. Add redirect from / to appropriate dashboard based on role (or login if not authenticated)
+
+Structure:
+<AuthProvider>
+  <BrowserRouter>
+    <Routes>
+      {/* routes here */}
+    </Routes>
+  </BrowserRouter>
+</AuthProvider>
+
+---END PROMPT---
+
+
+PROMPT 12: Create Signup Page Component
+---START PROMPT---
+
+Create src/pages/candidate/SignupPage.tsx for new candidate registration:
+
+REQUIREMENTS:
+
+Design matching the login page but with additional fields.
+
+Form fields:
+- Full Name (text input)
+- Email (email input)
+- Password (password input with show/hide toggle)
+- Confirm Password (password input)
+
+Features:
+1. Form validation:
+   - All fields required
+   - Email format validation
+   - Password minimum 8 characters
+   - Passwords must match
+
+2. State management:
+   - Form data state
+   - Loading state
+   - Error state
+
+3. handleSubmit function:
+   - Prevent default
+   - Validate form
+   - Call signUp from auth.ts with role='candidate'
+   - On success: show "Check your email for verification" message
+   - Navigate to /candidate/login
+   - On error: display error message
+
+4. UI:
+   - Similar styling to LoginPage
+   - "Already have an account? Login" link to /candidate/login
+   - Show loading spinner on submit button when loading
+   - Display error messages below form
+
+Use Tailwind CSS for styling, match the design system colors.
+
+---END PROMPT---
+
+
+PROMPT 13: Update Login Page with Supabase
+---START PROMPT---
+
+Update src/pages/candidate/LoginPage.tsx to use real Supabase authentication:
+
+CHANGES NEEDED:
+
+1. Import signIn from '../../lib/auth'
+2. Import supabase from '../../lib/supabase'
+3. Import useNavigate from react-router-dom
+
+4. Add state:
+   - loading (boolean)
+   - error (string)
+
+5. Update handleLogin function:
+   - Set loading to true
+   - Call signIn({ email, password })
+   - On success:
+     * Query profiles table to get user role
+     * If role is 'admin', navigate to /admin/dashboard
+     * If role is 'candidate', navigate to /candidate/dashboard
+   - On error:
+     * Set error message
+     * Display error below form
+   - Finally:
+     * Set loading to false
+
+6. Add link to signup page: "Don't have an account? Sign up"
+
+7. Disable form submit button when loading
+
+8. Show error message in red if error exists
+
+Keep existing UI/styling, just integrate real authentication.
+
+---END PROMPT---
+
+
+PROMPT 14: Update Dashboard to Fetch Real Data
+---START PROMPT---
+
+Update src/pages/candidate/DashboardPage.tsx to load real data from Supabase:
+
+CHANGES NEEDED:
+
+1. Import:
+   - useAuth from '../../contexts/AuthContext'
+   - getUserApplication from '../../lib/applications'
+   - useEffect, useState from react
+
+2. Add state:
+   - application (CandidateApplication | null)
+   - loading (boolean)
+
+3. useEffect to load data on mount:
+   - Get user from useAuth hook
+   - Call getUserApplication(user.id)
+   - Set application state
+   - Handle loading state
+
+4. Update status display:
+   - Show actual application.status
+   - Show actual progress percentage based on status
+   - Update timeline based on actual data
+
+5. Update quick actions:
+   - "Fill Application Form" - only show if no application or status is 'draft'
+   - "Upload Documents" - enable only if status is 'approved' or 'documents_pending'
+   - "View Application" - show if application exists
+
+6. Add logout functionality:
+   - Import signOut from '../../lib/auth'
+   - Call signOut and navigate to /candidate/login on click
+
+7. Display actual candidate name from profile (useAuth)
+
+8. Show loading spinner while data is loading
+
+Replace all mock data with real data from Supabase.
+
+---END PROMPT---
+
+
+PROMPT 15: Update Application Form with Supabase
+---START PROMPT---
+
+Update src/pages/candidate/ApplicationFormPage.tsx to save data to Supabase:
+
+CHANGES NEEDED:
+
+1. Import:
+   - useAuth hook
+   - createApplication, updateApplication, submitApplication, getUserApplication from lib/applications
+   - useEffect for loading draft
+
+2. Add state:
+   - applicationId (string | null) - to track if editing existing draft
+
+3. useEffect to load existing draft on mount:
+   - Get user from useAuth
+   - Call getUserApplication(user.id)
+   - If application exists and status is 'draft' or 'submitted':
+     * Set applicationId
+     * Populate formData with application data
+     * Set currentStep if partially completed
+
+4. Update handleSaveAsDraft:
+   - If applicationId exists, call updateApplication
+   - If no applicationId, call createApplication and store returned ID
+   - Show success message
+   - Handle errors
+
+5. Update handleSubmit:
+   - If no applicationId, create application first
+   - Then call submitApplication with applicationId
+   - On success, show success modal and navigate to dashboard
+   - Handle errors with user-friendly messages
+
+6. Add photo upload:
+   - Create file input for photo
+   - Upload to profile-photos bucket
+   - Store photo_url in form data
+
+7. Education data:
+   - Convert education array to JSONB format for database
+   - Parse JSONB back to array when loading
+
+Keep existing UI/UX, just integrate real database operations.
+
+---END PROMPT---
+
+
+PROMPT 16: Update Document Upload with Supabase Storage
+---START PROMPT---
+
+Update src/pages/candidate/DocumentUploadPage.tsx to use real Supabase storage:
+
+CHANGES NEEDED:
+
+1. Import:
+   - useAuth hook
+   - getUserApplication from lib/applications
+   - uploadDocument, getApplicationDocuments, getDocumentSignedUrl, deleteDocument from lib/documents
+
+2. Add state:
+   - applicationId (string)
+   - documents (array)
+   - loading, uploading (booleans)
+
+3. useEffect to load application and documents:
+   - Get user's application
+   - Set applicationId
+   - Load all documents for application
+   - Update UI with existing documents
+
+4. Update handleFileUpload:
+   - Validate file type (pdf, jpg, png)
+   - Validate file size (max 5MB)
+   - Call uploadDocument with proper params
+   - Update documents state with new document
+   - Show success message
+   - Handle errors
+
+5. Update handleDelete:
+   - Call deleteDocument with document ID and file path
+   - Remove from documents state
+   - Show confirmation before deleting
+
+6. Add handleViewDocument:
+   - Get signed URL for document
+   - Open in new tab
+
+7. Update handleSubmit:
+   - Check all required documents are uploaded
+   - Update application status to 'documents_pending'
+   - Show success modal
+   - Navigate to dashboard
+
+8. Display document status:
+   - Show upload status badge (uploaded, verified, rejected)
+   - Show file name and size
+   - Show upload date
+   - Enable replace button for uploaded documents
+
+9. Show which documents are required vs optional
+
+Replace all mock file handling with real Supabase storage operations.
+
+---END PROMPT---
+
+
+PROMPT 17: Update Admin Dashboard with Real Data
+---START PROMPT---
+
+Update src/pages/admin/AdminDashboardPage.tsx to fetch real applications:
+
+CHANGES NEEDED:
+
+1. Import:
+   - useAuth hook
+   - getAllApplications from lib/applications
+   - useEffect, useState
+
+2. Add state:
+   - applications (array)
+   - metrics (object with counts)
+   - loading (boolean)
+
+3. useEffect to load all applications:
+   - Call getAllApplications()
+   - Calculate metrics:
+     * Total applications count
+     * Count by status (pending, approved, rejected, documents_pending)
+   - Set state
+
+4. Update metrics cards with real counts
+
+5. Update applications table with real data:
+   - Show actual candidate names, posts, dates
+   - Show real status badges
+   - Update action handlers
+
+6. Add action handlers:
+   - handleView(id) - navigate to /admin/applications/:id
+   - handleApprove(id) - show approval modal
+   - handleReject(id) - show rejection modal
+
+7. Add real-time updates (optional):
+   - Use Supabase real-time subscriptions
+   - Auto-refresh when new applications submitted
+
+8. Add logout functionality for admin
+
+9. Show loading state while fetching data
+
+10. Handle errors with user-friendly messages
+
+Replace all mock data with real Supabase queries.
+
+---END PROMPT---
+
+
+PROMPT 18: Update Admin Application Detail View
+---START PROMPT---
+
+Update src/pages/admin/ApplicationDetailPage.tsx to load and update real application:
+
+CHANGES NEEDED:
+
+1. Import:
+   - useAuth hook
+   - useParams from react-router-dom
+   - getApplicationById, approveApplication, rejectApplication from lib/applications
+   - getApplicationDocuments from lib/documents
+
+2. Get applicationId from URL params
+
+3. useEffect to load application data:
+   - Call getApplicationById(applicationId)
+   - Load associated documents
+   - Set state
+
+4. Update handleApprove:
+   - Get admin ID from useAuth
+   - Call approveApplication(applicationId, adminId)
+   - Show success message
+   - Optionally send email notification
+   - Refresh application data
+
+5. Update handleReject:
+   - Get admin ID from useAuth
+   - Show rejection modal with reason input
+   - Call rejectApplication(applicationId, adminId, reason)
+   - Show success message
+   - Refresh application data
+
+6. Display all application fields from database
+
+7. Show document list with verification options:
+   - Call verifyDocument for each document
+   - Update document status in real-time
+
+8. Add internal notes functionality:
+   - Save notes to admin_notes field
+   - Update application on save
+
+9. Show actual reviewed_by and reviewed_at if available
+
+10. Add print functionality to generate PDF
+
+Replace mock application data with real data from Supabase.
+
+---END PROMPT---
+
+
+================================================================================
+PHASE 8: ADMIN ACCOUNT CREATION✅
+================================================================================
+
+PROMPT 19: Create Admin Account
+---START PROMPT---
+
+I need to create an admin account in Supabase for testing.
+
+Provide two methods:
+
+METHOD 1: Via Supabase Dashboard
+- Step-by-step instructions to create user in Authentication → Users
+- Email: admin@jrminfosystems.com
+- Password: (secure password)
+- How to manually update role to 'admin' in profiles table
+
+METHOD 2: Via SQL
+- SQL script to create admin user directly
+- Insert into auth.users with hashed password
+- Update profiles table to set role='admin'
+- Make email confirmed automatically
+
+Also provide SQL to verify admin was created correctly.
+
+---END PROMPT---
+
+
+================================================================================
+PHASE 9: TESTING & VALIDATION✅
+================================================================================
+
+PROMPT 20: Create Test Checklist and Debug Helpers
+---START PROMPT---
+
+Create comprehensive testing checklist and debug helper functions:
+
+1. Create src/utils/testHelpers.ts with:
+   - Function to check if user is authenticated
+   - Function to verify database connection
+   - Function to test RLS policies
+   - Function to test storage access
+   - Console logs for debugging auth state
+
+2. Create testing checklist document:
+   - Database schema validation
+   - RLS policy validation
+   - Storage bucket validation
+   - Authentication flow testing
+   - Role-based access testing
+   - Document upload testing
+   - Application CRUD testing
+
+3. Common issues and solutions:
+   - "Row Level Security policy violation" error
+   - "Storage bucket not found" error
+   - "Unauthorized" errors
+   - File upload failures
+   - Missing environment variables
+
+4. Debug SQL queries:
+   - Check user's role
+   - View user's applications
+   - Check document associations
+   - View RLS policies
+   - Check storage policies
+
+Provide detailed testing instructions and troubleshooting guide.
+
+---END PROMPT---
+
+
+================================================================================
+PHASE 10: FINAL INTEGRATION & DEPLOYMENT✅
+================================================================================
+
+PROMPT 21: Environment Variables Setup
+---START PROMPT---
+
+Create complete guide for environment variables setup:
+
+1. Create .env.example file with placeholder values:
+   - VITE_SUPABASE_URL=
+   - VITE_SUPABASE_ANON_KEY=
+
+2. Instructions to get actual values from Supabase dashboard:
+   - Where to find Project URL
+   - Where to find anon/public API key
+   - Security notes about API keys
+
+3. Add .env to .gitignore
+
+4. Create .env.local for local development
+
+5. Instructions for deployment:
+   - Vercel environment variables
+   - Netlify environment variables
+   - Other hosting platforms
+
+6. Environment validation function in code:
+   - Check if variables are set
+   - Throw clear errors if missing
+   - Log configuration status in development
+
+---END PROMPT---
+
+
+PROMPT 22: Final Integration Checklist
+---START PROMPT---
+
+Create final integration checklist before going live:
+
+BACKEND CHECKLIST:
+- [ ] All tables created with correct schema
+- [ ] Indexes added for performance
+- [ ] RLS enabled on all tables
+- [ ] RLS policies tested and working
+- [ ] Storage buckets created (candidate-documents, profile-photos)
+- [ ] Storage policies configured
+- [ ] Triggers active (profile creation, timestamp updates)
+- [ ] Admin account created and tested
+- [ ] Database constraints working (CHECK, FOREIGN KEY)
+- [ ] JSONB fields validated (education array)
+
+FRONTEND CHECKLIST:
+- [ ] Supabase client installed and configured
+- [ ] Environment variables set
+- [ ] AuthContext working
+- [ ] Protected routes blocking unauthorized access
+- [ ] Signup flow working
+- [ ] Login flow working (both roles)
+- [ ] Logout working
+- [ ] Dashboard loading real data
+- [ ] Application form saving to database
+- [ ] Document upload working
+- [ ] Admin can view all applications
+- [ ] Admin can approve/reject applications
+- [ ] Admin can verify documents
+- [ ] Role-based access control working
+
+TESTING CHECKLIST:
+- [ ] Create candidate account
+- [ ] Fill and submit application
+- [ ] Upload documents
+- [ ] Create admin account
+- [ ] Admin can see application
+- [ ] Admin can approve application
+- [ ] Candidate gets updated status
+- [ ] Candidate can upload documents after approval
+- [ ] Admin can verify documents
+- [ ] Application status updates correctly
+
+SECURITY CHECKLIST:
+- [ ] Candidates can only see their own data
+- [ ] Admins can see all data
+- [ ] File uploads restricted to own folders
+- [ ] SQL injection protected (using parameterized queries)
+- [ ] XSS protected (React auto-escapes)
+- [ ] API keys not exposed in frontend code
+- [ ] Passwords hashed by Supabase Auth
+
+Provide detailed testing script for each item.
+
+---END PROMPT---
+
+
+================================================================================
+QUICK START SUMMARY
+================================================================================
+
+EXECUTION ORDER:
+
+Phase 1 (Setup):
+1. Run Prompt 1: Install dependencies
+2. Run Prompt 2: Create Supabase client
+
+Phase 2 (Database):
+3. Run Prompt 3: Review current structure
+4. Run Prompt 4: Run SQL migration in Supabase
+5. Run Prompt 5: Setup storage buckets
+
+Phase 3 (Auth):
+6. Run Prompt 6: Create auth functions
+7. Run Prompt 7: Create Auth Context
+8. Run Prompt 8: Create Protected Route
+
+Phase 4 (Data):
+9. Run Prompt 9: Create application functions
+10. Run Prompt 10: Create document functions
+
+Phase 5 (Integration):
+11. Run Prompt 11: Update App.tsx
+12. Run Prompt 12: Create Signup page
+13. Run Prompt 13: Update Login page
+14. Run Prompt 14-18: Update all pages with real data
+
+Phase 6 (Admin):
+19. Run Prompt 19: Create admin account
+
+Phase 7 (Testing):
+20. Run Prompt 20: Test everything
+21. Run Prompt 21: Setup environment variables
+22. Run Prompt 22: Final checklist
+
+TOTAL TIME ESTIMATE: 3-4 hours for complete backend integration
+
+================================================================================
+END OF PROMPTS
+================================================================================
+
+Copy each prompt sequentially and paste into GitHub Copilot or Cursor AI.
+Test after each major phase to ensure everything works before proceeding.
+
+Good luck with your backend setup! 🚀

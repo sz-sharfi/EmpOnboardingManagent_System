@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Home, FileText, BarChart, Settings, Bell, Download, Calendar } from 'lucide-react';
-import supabase from '../../utils/supabaseClient';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Statistics {
   total_applications: number;
@@ -16,20 +17,20 @@ interface Application {
   id: string;
   user_id: string;
   status: string;
-  submitted_at: string;
+  submitted_at: string | null;
   created_at: string;
-  form_data: {
-    fullName?: string;
-    postAppliedFor?: string;
-  };
+  post_applied_for: string | null;
+  name: string | null;
+  email: string | null;
   profiles: {
     email: string;
-    full_name: string;
-  };
+    full_name: string | null;
+  } | null;
 }
 
 export default function ReportsPage() {
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,11 +44,24 @@ export default function ReportsPage() {
 
   const fetchStatistics = async () => {
     try {
-      const { data, error } = await supabase.rpc('get_admin_statistics');
+      // Calculate statistics from candidate_applications
+      const { data, error } = await supabase
+        .from('candidate_applications')
+        .select('status');
+      
       if (error) throw error;
-      if (data && data.length > 0) {
-        setStatistics(data[0]);
-      }
+      
+      const apps = (data || []) as Array<{ status: string }>;
+      const stats: Statistics = {
+        total_applications: apps.length,
+        pending_review: apps.filter(a => a.status === 'submitted').length,
+        approved: apps.filter(a => a.status === 'approved').length,
+        rejected: apps.filter(a => a.status === 'rejected').length,
+        documents_pending: apps.filter(a => a.status === 'draft').length,
+        completed: apps.filter(a => a.status === 'approved' || a.status === 'rejected').length,
+      };
+      
+      setStatistics(stats);
     } catch (error) {
       console.error('Error fetching statistics:', error);
     }
@@ -57,16 +71,24 @@ export default function ReportsPage() {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('applications')
+        .from('candidate_applications')
         .select(`
-          *,
-          profiles!applications_user_id_fkey (
+          id,
+          user_id,
+          status,
+          submitted_at,
+          created_at,
+          post_applied_for,
+          name,
+          email,
+          profiles:profiles!candidate_applications_user_id_fkey (
             email,
             full_name
           )
         `)
         .neq('status', 'draft')
-        .order('submitted_at', { ascending: false });
+        .order('submitted_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setApplications(data || []);
@@ -89,9 +111,9 @@ export default function ReportsPage() {
         
         return [
           new Date(app.created_at).toLocaleDateString(),
-          app.form_data.fullName || app.profiles.full_name || '',
-          app.profiles.email,
-          app.form_data.postAppliedFor || '',
+          app.profiles?.full_name || app.name || '',
+          app.profiles?.email || app.email || '',
+          app.post_applied_for || '',
           app.status,
           submittedDate ? submittedDate.toLocaleDateString() : 'N/A',
           processingDays.toString()
@@ -110,12 +132,13 @@ export default function ReportsPage() {
 
   const calculateAverageProcessingTime = () => {
     const completedApps = applications.filter(app => 
-      (app.status === 'accepted' || app.status === 'rejected') && app.submitted_at
+      (app.status === 'approved' || app.status === 'rejected') && app.submitted_at
     );
     
     if (completedApps.length === 0) return 0;
     
     const totalDays = completedApps.reduce((sum, app) => {
+      if (!app.submitted_at) return sum;
       const submittedDate = new Date(app.submitted_at);
       const currentDate = new Date();
       const days = Math.floor((currentDate.getTime() - submittedDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -143,7 +166,7 @@ export default function ReportsPage() {
   const getApplicationsByPost = () => {
     const posts: Record<string, number> = {};
     applications.forEach(app => {
-      const post = app.form_data.postAppliedFor || 'Not Specified';
+      const post = app.post_applied_for || 'Not Specified';
       posts[post] = (posts[post] || 0) + 1;
     });
     return Object.entries(posts).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -165,8 +188,14 @@ export default function ReportsPage() {
             </div>
             <div className="relative">
               <button onClick={() => setProfileOpen(!profileOpen)} className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-gray-200" />
-                <span className="font-medium">Admin User</span>
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt={profile.full_name || 'Admin'} className="w-8 h-8 rounded-full object-cover" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold">
+                    {(profile?.full_name || profile?.email || 'A').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span className="font-medium">{profile?.full_name || profile?.email || 'Admin'}</span>
               </button>
               {profileOpen && (
                 <div className="absolute right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 w-48">
@@ -189,10 +218,6 @@ export default function ReportsPage() {
           <Link to="/admin/applications" className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 rounded">
             <FileText size={20} />
             <span>Applications</span>
-          </Link>
-          <Link to="/admin/documents" className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 rounded">
-            <FileText size={20} />
-            <span>Document Review</span>
           </Link>
           <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-600 rounded">
             <BarChart size={20} />
@@ -398,16 +423,16 @@ export default function ReportsPage() {
                             {new Date(app.created_at).toLocaleDateString()}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900">
-                            {app.form_data.fullName || app.profiles.full_name || 'N/A'}
+                            {app.profiles?.full_name || app.name || 'N/A'}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900">
-                            {app.form_data.postAppliedFor || 'N/A'}
+                            {app.post_applied_for || 'N/A'}
                           </td>
                           <td className="px-6 py-4 text-sm">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              app.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                              app.status === 'approved' ? 'bg-green-100 text-green-800' :
                               app.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                              app.status === 'under_review' ? 'bg-yellow-100 text-yellow-800' :
+                              app.status === 'submitted' ? 'bg-yellow-100 text-yellow-800' :
                               'bg-blue-100 text-blue-800'
                             }`}>
                               {app.status.replace(/_/g, ' ').toUpperCase()}
